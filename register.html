@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="ku" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تۆمارکردن و دەستکاریکردنی قوتابی - سیستەمی غایبات</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f9;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        .top-bar {
+            background: #16324f; padding: 10px 24px; box-sizing: border-box;
+            display: flex; justify-content: space-between; align-items: center; font-size: 13px;
+            color: #cfe4f0;
+        }
+        .top-bar a { color: #8fc7e3; text-decoration: none; margin-inline-start: 14px; }
+        .top-bar a:hover { text-decoration: underline; }
+        .top-bar .role-tag {
+            background: #f1c40f; color: #0f2740; font-size: 11px; font-weight: bold;
+            padding: 2px 8px; border-radius: 10px; margin-left: 6px;
+        }
+        .top-bar button {
+            background: none; border: 1px solid #445; color: #ccc; padding: 4px 12px;
+            border-radius: 6px; cursor: pointer; font-family: inherit; font-size: 12px;
+        }
+        .top-bar button:hover { background: #c0392b; border-color: #c0392b; color: white; }
+        .page-wrap { padding: 20px; }
+
+        .container {
+            max-width: 980px;
+            margin: 0 auto;
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        h2, h3, h4 { color: #2c3e50; }
+
+        input[type="text"], input[type="file"], select {
+            width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box;
+        }
+        button { padding: 6px 12px; border: none; cursor: pointer; border-radius: 4px; margin: 2px; font-family: inherit; }
+        .btn-menu {
+            background-color: #34495e; color: white; padding: 10px 20px; font-size: 14px;
+            border: none; border-radius: 6px; cursor: pointer;
+        }
+        .btn-save { background: #27ae60; color: white; width: 100%; padding: 12px; font-size: 16px; margin-top: 15px; font-weight: bold; }
+        .btn-save:hover { background: #219653; }
+
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .tool-box {
+            background: #f8f9fa;
+            border: 1px solid #dce1e7;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        .tool-box h4 { margin-top: 0; margin-bottom: 10px; color: #16324f; }
+        .btn-fix-db {
+            background: #e67e22; color: white; width: 100%; padding: 10px;
+            font-size: 14px; font-weight: bold; border-radius: 5px;
+        }
+        .btn-fix-db:hover { background: #d35400; }
+        .btn-bulk-class {
+            background: #2980b9; color: white; width: 100%; padding: 10px;
+            font-size: 14px; font-weight: bold; border-radius: 5px; margin-top: 6px;
+        }
+        .btn-bulk-class:hover { background: #1f6391; }
+
+        .image-section { text-align: center; margin: 15px 0; background: #fafafa; padding: 15px; border-radius: 8px; border: 1px solid #eee; }
+        .img-preview { width: 180px; height: 180px; object-fit: cover; border-radius: 10px; display: none; margin: 10px auto; border: 2px solid #34495e; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+        
+        .video-wrapper {
+            width: 100%; max-width: 380px; height: 280px; margin: 10px auto;
+            border-radius: 10px; overflow: hidden; border: 2px solid #34495e; background: #000;
+            display: none; position: relative;
+        }
+        #webcam { width: 100%; height: 100%; object-fit: cover; transform-origin: center center; }
+
+        .zoom-controls {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin: 10px auto;
+            max-width: 360px;
+            background: #eef2f7;
+            padding: 8px 15px;
+            border-radius: 20px;
+        }
+        .zoom-btn {
+            background-color: #2980b9; color: white; border: none; border-radius: 50%;
+            width: 32px; height: 32px; font-size: 16px; font-weight: bold;
+            display: flex; align-items: center; justify-content: center; cursor: pointer;
+        }
+        .zoom-btn:hover { background-color: #1c5980; }
+        .zoom-controls input[type="range"] { flex: 1; cursor: pointer; }
+        .zoom-value { font-size: 13px; font-weight: bold; width: 45px; text-align: center; }
+
+        .card-scan-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .card-scan-row input#card-id { flex: 1; min-width: 160px; margin: 8px 0; }
+        .card-scan-row button { white-space: nowrap; font-size: 13px; padding: 9px 12px; }
+        .btn-scan-connect { background: #16a085; color: white; }
+        .btn-scan-disconnect { background: #e74c3c; color: white; }
+        .scan-status { font-size: 12px; color: #888; margin: -4px 0 10px; }
+        .scan-status.connected { color: #16a085; font-weight: bold; }
+        #card-id.just-scanned { border-color: #16a085; background: #eafaf3; }
+
+        .table-controls { display: flex; gap: 10px; margin: 15px 0; flex-wrap: wrap; align-items: center; }
+        .table-controls select, .table-controls input { flex: 1; min-width: 200px; margin: 0; }
+        .btn-excel { background-color: #27ae60; color: white; padding: 10px 16px; border-radius: 5px; font-size: 14px; cursor: pointer; }
+        .btn-excel:hover { background-color: #219653; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        table, th, td { border: 1px solid #ddd; padding: 8px; text-align: center; font-size: 14px; }
+        th { background-color: #34495e; color: white; }
+        .editable-cell { background: #fdfefe; border: 1px dashed #3498db; padding: 6px; width: 92%; text-align: center; border-radius: 4px; }
+        .editable-cell:focus { background: #fff; border: 1px solid #2980b9; outline: none; }
+        .btn-update-row { background: #2980b9; color: white; padding: 5px 10px; font-size: 12px; }
+        .btn-delete-row { background: #c0392b; color: white; padding: 5px 10px; font-size: 12px; }
+        .student-count-badge { background: #e67e22; color: white; padding: 5px 12px; border-radius: 12px; font-size: 13px; font-weight: bold; display: inline-block; margin-bottom: 10px; }
+        .status-badge-ok { color: #27ae60; font-weight: bold; font-size: 12px; }
+        .status-badge-err { color: #c0392b; font-weight: bold; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <div>
+            <span class="role-tag" id="role-tag">بەڕێوەبەر</span>
+            <span id="staff-name-label">چاوەڕوانبە...</span>
+        </div>
+        <div>
+            <a href="index.html">🏠 پانێڵی بەڕێوەبەر</a>
+            <a href="scanner.html">📡 سکانەر</a>
+            <button id="btn-logout">چوونەدەرەوە</button>
+        </div>
+    </div>
+
+    <div class="page-wrap">
+        <div class="container">
+            <h2>تۆمارکردنی قوتابی نوێ</h2>
+            
+            <form id="student-form">
+                <div class="card-scan-row">
+                    <input type="text" id="card-id" placeholder="ژمارەی کارت (RFID)" required>
+                    <button type="button" id="btn-scan-connect" class="btn-scan-connect">📡 پەیوەستکردنی کارتخوێن</button>
+                    <button type="button" id="btn-scan-disconnect" class="btn-scan-disconnect" style="display:none;">بڕینی پەیوەندی</button>
+                </div>
+                <div class="scan-status" id="scan-status">کارتخوێن پەیوەست نییە — دەتوانیت ژمارەی کارت بە دەست بنووسیت یان کارتخوێن پەیوەست بکەیت</div>
+                
+                <input type="text" id="student-name" placeholder="ناوی تەواو" required>
+                
+                <input type="text" id="student-class" list="class-list" placeholder="پۆل (هەڵبژێرە یان بنووسە)" required autocomplete="off">
+                <datalist id="class-list"></datalist>
+
+                <div class="image-section">
+                    <label style="display:block; font-weight:bold; margin-bottom:6px;">وێنەی قوتابی:</label>
+                    <input type="file" id="student-file" accept="image/*">
+                    
+                    <div class="video-wrapper" id="video-wrapper">
+                        <video id="webcam" autoplay playsinline></video>
+                    </div>
+                    
+                    <div class="zoom-controls" id="zoom-container">
+                        <button type="button" class="zoom-btn" id="btn-zoom-out" title="زوم ئاوت">-</button>
+                        <input type="range" id="zoom-slider" min="1" max="3" step="0.1" value="1">
+                        <button type="button" class="zoom-btn" id="btn-zoom-in" title="زوم ئین">+</button>
+                        <span class="zoom-value" id="zoom-val">1.0x</span>
+                    </div>
+
+                    <div style="margin-top: 8px;">
+                        <button type="button" id="btn-capture" class="btn-menu">کردنەوەی کامێرا</button>
+                        <button type="button" id="btn-take-pic" class="btn-menu" style="background-color: #27ae60; display:none;">گرتنی وێنە</button>
+                    </div>
+                    <canvas id="canvas" style="display:none;"></canvas>
+                    
+                    <img id="img-preview" class="img-preview" alt="وێنەی پێشبینیکراو">
+                </div>
+
+                <button type="submit" class="btn-save">پاشکەوتکردن</button>
+            </form>
+
+            <hr style="margin: 25px 0;">
+
+            <div class="tools-grid">
+                <div class="tool-box">
+                    <h4>🛠️ چاککردنی داتا کۆنەکانی فایەربەیس</h4>
+                    <p style="font-size: 13px; color: #555; margin-top: 0;">
+                        هەموو ئەو قوتابییانەی بە هەڵە خەزنکراون بە یەک کلیک چاک دەکات بۆ شێوازی ڕاست.
+                    </p>
+                    <button type="button" class="btn-fix-db" id="btn-fix-all-db">⚡ چاککردنی هەموو داتاکان بەیەکجار</button>
+                </div>
+
+                <div class="tool-box">
+                    <h4>✏️ گۆڕینی ناوی پۆل بەیەکجار</h4>
+                    <select id="bulk-old-class">
+                        <option value="">-- پۆلێک هەڵبژێرە بۆ گۆڕین --</option>
+                    </select>
+                    <input type="text" id="bulk-new-class" placeholder="ناوی پۆلە نوێیەکە بنووسە..." style="margin: 4px 0;">
+                    <button type="button" class="btn-bulk-class" id="btn-rename-class">گۆڕینی پۆلی هەموو قوتابییەکانی ئەم پۆلە</button>
+                </div>
+            </div>
+
+            <hr style="margin: 25px 0;">
+
+            <h3>لیستی قوتابییان و فلتەری پۆلەکان</h3>
+            
+            <div class="table-controls">
+                <select id="filter-class">
+                    <option value="all">هەموو پۆلەکان</option>
+                </select>
+                <input type="text" id="student-search" placeholder="گەڕان بە ناو یان کارت...">
+                <button type="button" class="btn-excel" id="btn-download-excel">📥 داگرتنی ڕاپۆرت (Calc / Excel)</button>
+            </div>
+
+            <div id="student-count-display" class="student-count-badge">کۆی گشتی قوتابیان: 0</div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>ژمارەی کارت (RFID)</th>
+                        <th>ناوی تەواو</th>
+                        <th>پۆل</th>
+                        <th>کۆدی بەخێوکەر</th>
+                        <th>کردارەکان</th>
+                    </tr>
+                </thead>
+                <tbody id="all-students-table-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script type="module">
+        import { app } from "./js/firebase-config.js";
+        import { requireStaffAuth, logout } from "./js/auth-guard.js";
+        import { 
+            getDatabase, ref, set, get, onValue, remove, update 
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        const db = getDatabase(app);
+        const staff = await requireStaffAuth({ requireAdmin: true });
+        
+        document.getElementById('staff-name-label').innerText = staff.name;
+        document.getElementById('btn-logout').addEventListener('click', logout);
+
+        let capturedImageBase64 = null;
+        let studentsCache = [];
+        let webcamStream = null; // ناساندنی گۆڕاوی کامێرا بە شێوەی دروست
+
+        function generateLinkCode(len = 14) {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            const arr = new Uint32Array(len);
+            crypto.getRandomValues(arr);
+            return Array.from(arr, n => chars[n % chars.length]).join('');
+        }
+
+        let serialPort = null;
+        let serialReader = null;
+        let isReadingSerial = false;
+
+        const btnConnect = document.getElementById('btn-scan-connect');
+        const btnDisconnect = document.getElementById('btn-scan-disconnect');
+        const scanStatus = document.getElementById('scan-status');
+        const cardIdInput = document.getElementById('card-id');
+
+        btnConnect.addEventListener('click', async () => {
+            if (!("serial" in navigator)) {
+                alert("وێبگەڕەکەت پشتگیری لە بەستەرەوەی پۆرتی سریال ناکات.");
+                return;
+            }
+            try {
+                try {
+                    serialPort = await navigator.serial.requestPort({
+                        filters: [
+                            { usbVendorId: 0x1a86 }, 
+                            { usbVendorId: 0x0403 }, 
+                            { usbVendorId: 0x2341 }, 
+                            { usbVendorId: 0x10c4 }  
+                        ]
+                    });
+                } catch (filterErr) {
+                    serialPort = await navigator.serial.requestPort();
+                }
+
+                await serialPort.open({ baudRate: 9600 });
+                btnConnect.style.display = 'none';
+                btnDisconnect.style.display = 'inline-block';
+                scanStatus.innerText = 'کارتخوێن پەیوەست بوو — کارتەکە نزیک بکەوە';
+                scanStatus.className = 'scan-status connected';
+
+                isReadingSerial = true;
+                readSerialData();
+            } catch (err) {
+                console.error("هەڵە لە پۆرت:", err);
+            }
+        });
+
+        btnDisconnect.addEventListener('click', async () => {
+            isReadingSerial = false;
+            if (serialReader) { await serialReader.cancel(); serialReader = null; }
+            if (serialPort) { await serialPort.close(); serialPort = null; }
+            btnConnect.style.display = 'inline-block';
+            btnDisconnect.style.display = 'none';
+            scanStatus.innerText = 'کارتخوێن پەیوەست نییە';
+            scanStatus.className = 'scan-status';
+        });
+
+        async function readSerialData() {
+            const textDecoder = new TextDecoderStream();
+            serialPort.readable.pipeTo(textDecoder.writable);
+            serialReader = textDecoder.readable.getReader();
+            try {
+                let buffer = "";
+                while (isReadingSerial) {
+                    const { value, done } = await serialReader.read();
+                    if (done) break;
+                    if (value) {
+                        buffer += value;
+                        if (buffer.includes("\n") || buffer.includes("\r")) {
+                            let cardId = buffer.trim();
+                            if (cardId.length > 0) {
+                                cardIdInput.value = cardId;
+                                cardIdInput.classList.add('just-scanned');
+                                setTimeout(() => cardIdInput.classList.remove('just-scanned'), 1500);
+                            }
+                            buffer = "";
+                        }
+                    }
+                }
+            } catch (error) {
+                console.log(error);
+            } finally {
+                if (serialReader) serialReader.releaseLock();
+            }
+        }
+
+        const btnCapture = document.getElementById('btn-capture');
+        const btnTakePic = document.getElementById('btn-take-pic');
+        const videoWrapper = document.getElementById('video-wrapper');
+        const video = document.getElementById('webcam');
+        const zoomContainer = document.getElementById('zoom-container');
+        const zoomSlider = document.getElementById('zoom-slider');
+        const zoomValDisplay = document.getElementById('zoom-val');
+        const btnZoomIn = document.getElementById('btn-zoom-in');
+        const btnZoomOut = document.getElementById('btn-zoom-out');
+
+        btnCapture.addEventListener('click', startWebcam);
+        btnTakePic.addEventListener('click', takeSnapshot);
+
+        async function startWebcam() {
+            btnTakePic.style.display = 'inline-block';
+            zoomContainer.style.display = 'flex';
+            videoWrapper.style.display = 'block';
+            try {
+                webcamStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: { ideal: 1280 }, height: { ideal: 720 } } 
+                });
+                video.srcObject = webcamStream;
+            } catch (e) {
+                alert("نەتوانرا کامێرا بکرێتەوە: " + e.message);
+            }
+        }
+
+        function updateZoom(val) {
+            let zoomVal = parseFloat(val);
+            if (zoomVal < 1) zoomVal = 1;
+            if (zoomVal > 3) zoomVal = 3;
+            zoomSlider.value = zoomVal;
+            zoomValDisplay.innerText = zoomVal.toFixed(1) + 'x';
+            video.style.transform = `scale(${zoomVal})`;
+        }
+
+        zoomSlider.oninput = (e) => updateZoom(e.target.value);
+        btnZoomIn.onclick = () => updateZoom(parseFloat(zoomSlider.value) + 0.2);
+        btnZoomOut.onclick = () => updateZoom(parseFloat(zoomSlider.value) - 0.2);
+
+        function takeSnapshot() {
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            capturedImageBase64 = canvas.toDataURL('image/jpeg');
+            showPreview(capturedImageBase64);
+            stopWebcam();
+        }
+
+        function stopWebcam() {
+            if (typeof webcamStream !== 'undefined' && webcamStream) {
+                webcamStream.getTracks().forEach(t => t.stop());
+                webcamStream = null;
+            }
+            if (videoWrapper) videoWrapper.style.display = 'none';
+            if (btnTakePic) btnTakePic.style.display = 'none';
+            if (zoomContainer) zoomContainer.style.display = 'none';
+            updateZoom(1);
+        }
+
+        function showPreview(src) {
+            const img = document.getElementById('img-preview');
+            img.src = src;
+            img.style.display = 'block';
+        }
+
+        onValue(ref(db, 'students'), (snapshot) => {
+            studentsCache = [];
+            const classSet = new Set();
+            if (snapshot.exists()) {
+                const data = snapshot.val();
+                Object.keys(data).forEach(id => {
+                    const st = data[id];
+                    studentsCache.push({ keyId: id, ...st });
+                    if (st.class) classSet.add(st.class.trim());
+                });
+            }
+            populateClassDropdowns(Array.from(classSet));
+            filterAndRenderStudents();
+        });
+
+        function populateClassDropdowns(classList) {
+            const datalist = document.getElementById('class-list');
+            const filterSelect = document.getElementById('filter-class');
+            const bulkSelect = document.getElementById('bulk-old-class');
+            
+            const currentFilter = filterSelect.value;
+            const currentBulk = bulkSelect.value;
+
+            datalist.innerHTML = '';
+            filterSelect.innerHTML = '<option value="all">هەموو پۆلەکان</option>';
+            bulkSelect.innerHTML = '<option value="">-- پۆلێک هەڵبژێرە بۆ گۆڕین --</option>';
+
+            classList.sort().forEach(cls => {
+                const opt1 = document.createElement('option');
+                opt1.value = cls;
+                datalist.appendChild(opt1);
+
+                const opt2 = document.createElement('option');
+                opt2.value = cls;
+                opt2.innerText = cls;
+                filterSelect.appendChild(opt2);
+
+                const opt3 = document.createElement('option');
+                opt3.value = cls;
+                opt3.innerText = cls;
+                bulkSelect.appendChild(opt3);
+            });
+
+            if (classList.includes(currentFilter)) filterSelect.value = currentFilter;
+            if (classList.includes(currentBulk)) bulkSelect.value = currentBulk;
+        }
+
+        function filterAndRenderStudents() {
+            const selectedClass = document.getElementById('filter-class').value;
+            const searchQuery = document.getElementById('student-search').value.toLowerCase();
+
+            let filtered = studentsCache.filter(st => {
+                const stClass = st.class || "";
+                const stName = st.name || "";
+                const stCard = st.cardId || st.keyId || "";
+                const matchClass = (selectedClass === 'all' || stClass === selectedClass);
+                const matchSearch = (stName.toLowerCase().includes(searchQuery) || stCard.toLowerCase().includes(searchQuery));
+                return matchClass && matchSearch;
+            });
+
+            document.getElementById('student-count-display').innerText = `کۆی گشتی قوتابیان لەم فلتەرەدا: ${filtered.length}`;
+            renderTable(filtered);
+        }
+
+        document.getElementById('filter-class').addEventListener('change', filterAndRenderStudents);
+        document.getElementById('student-search').addEventListener('input', filterAndRenderStudents);
+
+        function renderTable(list) {
+            const tbody = document.getElementById('all-students-table-body');
+            tbody.innerHTML = '';
+            list.forEach(st => {
+                const key = st.keyId;
+                const displayCard = st.cardId || key;
+                const isComplete = st.cardId && st.linkCode && st.imageUrl !== undefined && st.parentJoined !== undefined && !st.photo;
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><input type="text" class="editable-cell" id="card-${key}" value="${displayCard}"></td>
+                    <td><input type="text" class="editable-cell" id="name-${key}" value="${st.name || ''}"></td>
+                    <td><input type="text" class="editable-cell" id="class-${key}" value="${st.class || ''}"></td>
+                    <td>
+                        ${isComplete 
+                            ? `<span class="status-badge-ok">${st.linkCode}</span>` 
+                            : `<span class="status-badge-err">⚠️ پێویستی بە چاککردنە</span>`
+                        }
+                    </td>
+                    <td>
+                        <button class="btn-update-row" data-key="${key}">نوێکردنەوە</button>
+                        <button class="btn-delete-row" data-key="${key}">سڕینەوە</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            tbody.querySelectorAll('.btn-update-row').forEach(btn => {
+                btn.onclick = async () => {
+                    const oldKey = btn.dataset.key;
+                    const newCardId = document.getElementById(`card-${oldKey}`).value.trim();
+                    const newName = document.getElementById(`name-${oldKey}`).value.trim();
+                    const newClass = document.getElementById(`class-${oldKey}`).value.trim();
+
+                    if (!newCardId || !newName || !newClass) {
+                        alert("تکایە هەموو خانەکان پڕبکەرەوە!");
+                        return;
+                    }
+
+                    const oldData = studentsCache.find(s => s.keyId === oldKey) || {};
+                    const finalImageUrl = oldData.imageUrl !== undefined ? oldData.imageUrl : (oldData.photo || "");
+                    const finalLinkCode = oldData.linkCode || generateLinkCode(14);
+                    const finalParentJoined = oldData.parentJoined !== undefined ? oldData.parentJoined : false;
+
+                    const structuredStudent = {
+                        cardId: newCardId,
+                        class: newClass,
+                        imageUrl: finalImageUrl,
+                        linkCode: finalLinkCode,
+                        name: newName,
+                        parentJoined: finalParentJoined
+                    };
+
+                    if (newCardId !== oldKey) {
+                        await set(ref(db, `students/${newCardId}`), structuredStudent);
+                        await remove(ref(db, `students/${oldKey}`));
+                    } else {
+                        await set(ref(db, `students/${oldKey}`), structuredStudent);
+                    }
+                    alert("بە سەرکەوتوویی نوێکرایەوە!");
+                };
+            });
+
+            tbody.querySelectorAll('.btn-delete-row').forEach(btn => {
+                btn.onclick = async () => {
+                    if (confirm("دڵنیایت لە سڕینەوەی ئەم قوتابییە؟")) {
+                        await remove(ref(db, `students/${btn.dataset.key}`));
+                    }
+                };
+            });
+        }
+
+        document.getElementById('btn-fix-all-db').addEventListener('click', async () => {
+            if (!confirm("ئایا دڵنیایت دەتەوێت پێکهاتەی هەموو قوتابییەکان لە فایەربەیس چاک بکەیت؟")) return;
+
+            const snapshot = await get(ref(db, 'students'));
+            if (!snapshot.exists()) {
+                alert("هیچ قوتابییەک نەدۆزرایەوە.");
+                return;
+            }
+
+            const allStudents = snapshot.val();
+            const updates = {};
+            let fixedCount = 0;
+
+            Object.keys(allStudents).forEach(key => {
+                const st = allStudents[key];
+                const finalImageUrl = st.imageUrl !== undefined ? st.imageUrl : (st.photo || "");
+                const finalLinkCode = st.linkCode || generateLinkCode(14);
+                const finalParentJoined = st.parentJoined !== undefined ? st.parentJoined : false;
+                const finalCardId = st.cardId || key;
+
+                if (st.photo !== undefined || !st.cardId || !st.linkCode || st.imageUrl === undefined || st.parentJoined === undefined) {
+                    updates[`students/${key}`] = {
+                        cardId: finalCardId,
+                        class: st.class || "",
+                        imageUrl: finalImageUrl,
+                        linkCode: finalLinkCode,
+                        name: st.name || "",
+                        parentJoined: finalParentJoined
+                    };
+                    fixedCount++;
+                }
+            });
+
+            if (fixedCount > 0) {
+                await update(ref(db), updates);
+                alert(`تەواو! داتای ${fixedCount} قوتابی بە سەرکەوتوویی چاککرا.`);
+            } else {
+                alert("هەموو داتاکان پێشتر چاککراون و هیچ کێشەیەکیان نییە.");
+            }
+        });
+
+        document.getElementById('btn-rename-class').addEventListener('click', async () => {
+            const oldClass = document.getElementById('bulk-old-class').value;
+            const newClass = document.getElementById('bulk-new-class').value.trim();
+
+            if (!oldClass) {
+                alert("تکایە سەرەتا پۆلێک هەڵبژێرە!");
+                return;
+            }
+            if (!newClass) {
+                alert("تکایە ناوی پۆلە نوێیەکە بنووسە!");
+                return;
+            }
+            if (oldClass === newClass) {
+                alert("ناوە کۆنەکە و نوێیەکە هەمان شتن!");
+                return;
+            }
+
+            const targetStudents = studentsCache.filter(st => st.class === oldClass);
+            if (targetStudents.length === 0) return;
+
+            if (!confirm(`ئایا دڵنیایت دەتەوێت پۆلی (${targetStudents.length}) قوتابی لە "${oldClass}" بگۆڕیت بۆ "${newClass}"؟`)) return;
+
+            const updates = {};
+            targetStudents.forEach(st => {
+                updates[`students/${st.keyId}/class`] = newClass;
+            });
+
+            await update(ref(db), updates);
+            document.getElementById('bulk-new-class').value = '';
+            alert(`بە سەرکەوتوویی پۆلی هەموو (${targetStudents.length}) قوتابییەکە گۆڕدرا بۆ "${newClass}"!`);
+        });
+
+        document.getElementById('btn-download-excel').addEventListener('click', () => {
+            const selectedClass = document.getElementById('filter-class').value;
+            let listToExport = studentsCache;
+            if (selectedClass !== 'all') {
+                listToExport = studentsCache.filter(st => st.class === selectedClass);
+            }
+
+            let csvContent = "\uFEFFژمارەی کارت,ناوی قوتابی,پۆل,کۆدی بەخێوکەر\n";
+            listToExport.forEach(st => {
+                const cId = st.cardId || st.keyId;
+                const lCode = st.linkCode || "";
+                csvContent += `"${cId}","${st.name}","${st.class}","${lCode}"\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Students_Report_${selectedClass}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        });
+
+        function resetFormKeepClass() {
+            const currentClass = document.getElementById('student-class').value;
+            document.getElementById('card-id').value = '';
+            document.getElementById('student-name').value = '';
+            document.getElementById('student-file').value = '';
+            document.getElementById('student-class').value = currentClass;
+            document.getElementById('img-preview').style.display = 'none';
+            capturedImageBase64 = null;
+            stopWebcam();
+        }
+
+        document.getElementById('student-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const cardId = document.getElementById('card-id').value.trim();
+            const name = document.getElementById('student-name').value.trim();
+            const cls = document.getElementById('student-class').value.trim();
+            const fileInput = document.getElementById('student-file');
+
+            let photoData = capturedImageBase64;
+            if (!photoData && fileInput.files.length > 0) {
+                photoData = await new Promise(resolve => {
+                    const reader = new FileReader();
+                    reader.onload = e => resolve(e.target.result);
+                    reader.readAsDataURL(fileInput.files[0]);
+                });
+            }
+
+            const studentData = {
+                cardId: cardId,
+                class: cls,
+                imageUrl: photoData || "",
+                linkCode: generateLinkCode(14),
+                name: name,
+                parentJoined: false
+            };
+
+            await set(ref(db, `students/${cardId}`), studentData);
+            resetFormKeepClass();
+            alert("بە سەرکەوتوویی تۆمارکرا!");
+        });
+    </script>
+</body>
+</html>

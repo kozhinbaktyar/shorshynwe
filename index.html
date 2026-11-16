@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ku" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>چوونەژوورەوە - سیستەمی ئامادەبوون</title>
+<style>
+    * { box-sizing: border-box; }
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(160deg, #16324f 0%, #2c3e50 100%);
+        color: #333;
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+    .login-box {
+        background: white;
+        width: 380px;
+        max-width: 100%;
+        border-radius: 14px;
+        padding: 32px 28px;
+        box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        text-align: center;
+    }
+    .login-box h2 { color: #16324f; margin-top: 0; margin-bottom: 4px; }
+    .login-box .subtitle { color: #888; font-size: 13px; margin-bottom: 24px; }
+    
+    .form-group { text-align: right; margin-bottom: 12px; }
+    .form-group label { font-size: 13px; color: #555; font-weight: bold; display: block; margin-bottom: 4px; }
+
+    input[type="email"], input[type="password"] {
+        width: 100%; padding: 12px; border: 1px solid #ccc;
+        border-radius: 8px; font-size: 15px; direction: ltr;
+        font-family: inherit; box-sizing: border-box;
+    }
+    button {
+        width: 100%; padding: 13px; margin-top: 10px; border: none; border-radius: 8px;
+        font-size: 15px; font-weight: bold; cursor: pointer; font-family: inherit;
+        background: #2980b9; color: white; transition: background .2s;
+    }
+    button:hover { background: #216a94; }
+    button:disabled { background: #a9b6c0; cursor: not-allowed; }
+    .error-msg { color: #c0392b; font-size: 13px; min-height: 18px; margin: 8px 0; }
+    .info-box {
+        background: #fff3cd; color: #7a5c00; border-radius: 8px; padding: 14px;
+        font-size: 13px; text-align: right; margin-top: 14px; line-height: 1.7;
+        display: none;
+    }
+    .uid-box {
+        background: #16324f; color: #fff; direction: ltr; font-family: monospace;
+        padding: 8px; border-radius: 6px; margin-top: 8px; word-break: break-all;
+        font-size: 12px; cursor: pointer; text-align: center;
+    }
+    .signup-link { margin-top: 18px; font-size: 13px; color: #666; }
+    .signup-link a { color: #2980b9; text-decoration: none; font-weight: bold; }
+    .signup-link a:hover { text-decoration: underline; }
+
+    .badge-logo {
+        width: 60px; height: 60px; border-radius: 50%; background: #16324f;
+        color: #4fb0d9; font-size: 26px; display: flex; align-items: center;
+        justify-content: center; margin: 0 auto 14px auto; font-weight: bold;
+    }
+</style>
+</head>
+<body>
+
+<div class="login-box">
+    <div class="badge-logo">🎓</div>
+    <h2>سیستەمی ئامادەبوونی قوتابخانە</h2>
+    <div class="subtitle">چوونەژوورەوە تایبەت بە ستاف و بەڕێوەبەران</div>
+
+    <form id="login-form">
+        <div class="form-group">
+            <label>ئیمەیڵ:</label>
+            <input type="email" id="email-input" placeholder="example@gmail.com" required>
+        </div>
+
+        <div class="form-group">
+            <label>وشەی نهێنی:</label>
+            <input type="password" id="password-input" placeholder="******" required>
+        </div>
+
+        <div class="error-msg" id="login-error"></div>
+
+        <button type="submit" id="btn-login">چوونەژوورەوە</button>
+    </form>
+
+    <!-- پەیامی "هێشتا وەک ستاف تۆمار نەکراویت" -->
+    <div class="info-box" id="not-staff-box">
+        <b>⚠️ هەژمارەکەت هێشتا وەک ستاف تۆمار نەکراوە.</b><br>
+        ئەم ID-یە بنێرە بۆ بەڕێوەبەری سیستەمەکە تاوەکو تۆمارت بکات لە کۆلێکشنی <code>staff</code>دا:
+        <div class="uid-box" id="uid-display" title="کرتە بکە بۆ کۆپیکردن"></div>
+    </div>
+</div>
+
+<script type="module">
+    import { auth, db } from "./js/firebase-config.js";
+    import { signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { ref, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+    const el = (id) => document.getElementById(id);
+    const loginForm = el('login-form');
+    const emailInput = el('email-input');
+    const passwordInput = el('password-input');
+    const loginError = el('login-error');
+    const btnLogin = el('btn-login');
+    const notStaffBox = el('not-staff-box');
+    const uidDisplay = el('uid-display');
+
+    // ===== پارامەترەکانی URL =====
+    const params = new URLSearchParams(location.search);
+    const redirectTo = params.get('redirect') || 'home.html';
+    if (params.get('reason') === 'not-staff') {
+        loginError.innerText = "هەژمارەکەت هێشتا وەک ستاف تۆمار نەکراوە.";
+    }
+
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        loginError.innerText = '';
+        notStaffBox.style.display = 'none';
+
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+
+        btnLogin.disabled = true;
+        btnLogin.textContent = 'چاوەڕوانبە...';
+
+        try {
+            // چوونەژوورەوە بە ئیمەیڵ و پاسۆرد
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const uid = userCredential.user.uid;
+
+            // پشکنین: ئایا ئەم uid لە staff تۆمارکراوە؟ (Realtime Database)
+            const staffSnap = await get(ref(db, "staff/" + uid));
+            if (staffSnap.exists()) {
+                window.location.href = redirectTo;
+            } else {
+                await signOut(auth);
+                notStaffBox.style.display = 'block';
+                uidDisplay.innerText = uid;
+                uidDisplay.onclick = () => {
+                    navigator.clipboard.writeText(uid);
+                    uidDisplay.innerText = 'کۆپی کرا ✔';
+                    setTimeout(() => uidDisplay.innerText = uid, 1500);
+                };
+            }
+        } catch (e) {
+            console.error(e);
+            if (e.code === 'auth/invalid-credential' || e.code === 'auth/user-not-found' || e.code === 'auth/wrong-password') {
+                loginError.innerText = 'ئیمەیڵ یان وشەی نهێنی هەڵەیە';
+            } else {
+                loginError.innerText = 'هەڵەیەک ڕوویدا: ' + (e.message || e.code);
+            }
+        } finally {
+            btnLogin.disabled = false;
+            btnLogin.textContent = 'چوونەژوورەوە';
+        }
+    });
+</script>
+</body>
+</html>

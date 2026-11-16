@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ku" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لاپەڕەی مامۆستا - غایباتی پۆل</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f4f6f9; margin: 0; padding: 20px; color: #333; }
+        .box { max-width: 600px; margin: 20px auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        h2, h3 { text-align: center; color: #2c3e50; }
+        input, select, button { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 15px; }
+        button { background: #27ae60; color: white; border: none; cursor: pointer; font-weight: bold; }
+        button:hover { background: #219150; }
+        .student-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-top: 15px; }
+        .student-card { background: #e8f8f5; border: 2px solid #2ecc71; padding: 15px; text-align: center; border-radius: 8px; cursor: pointer; user-select: none; transition: 0.2s; }
+        .student-card.absent { background: #fadbd8; border-color: #e74c3c; color: #78281f; font-weight: bold; }
+        .top-nav { display: flex; justify-content: space-between; align-items: center; background: #34495e; color: white; padding: 10px 20px; border-radius: 8px; margin-bottom: 20px; }
+        .btn-logout { background: #e74c3c; width: auto; padding: 6px 15px; }
+    </style>
+</head>
+<body>
+
+    <div id="login-section" class="box">
+        <h2>چوونەژوورەوەی مامۆستا</h2>
+        <form id="teacher-login-form">
+            <input type="text" id="username" placeholder="ناوی بەکارهێنەر" required>
+            <input type="password" id="password" placeholder="پاسۆرد" required>
+            <button type="submit">چوونەژوورەوە</button>
+        </form>
+    </div>
+
+    <div id="dashboard-section" class="box" style="display:none;">
+        <div class="top-nav">
+            <span id="teacher-welcome">بەخێربێیت</span>
+            <button class="btn-logout" id="btn-logout">چوونەدەرەوە</button>
+        </div>
+
+        <h3>تۆمارکردنی غایباتی ناوبۆل</h3>
+        <label>پۆل هەڵبژێرە:</label>
+        <select id="class-select">
+            <option value="">-- دیاریکردنی پۆل --</option>
+        </select>
+
+        <div id="students-container" style="display:none;">
+            <p style="font-size: 13px; color: #666;">کرتە لەسەر ناوی قوتابی بکە بۆ دیاریکردنی وەک **غایب** (سور) یان **ئامادە** (سەوز):</p>
+            <div id="students-grid" class="student-grid"></div>
+            <button id="btn-save-attendance" style="margin-top:20px;">ناردنی ڕاپۆرتی غایبات بۆ بەڕێوەبەر</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { app } from "./js/firebase-config.js";
+        import { getDatabase, ref, get, child, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        const db = getDatabase(app);
+        let currentTeacher = null;
+        let classStudents = [];
+        let absentCards = new Set();
+
+        const loginForm = document.getElementById('teacher-login-form');
+        const loginSection = document.getElementById('login-section');
+        const dashboardSection = document.getElementById('dashboard-section');
+        const classSelect = document.getElementById('class-select');
+        const studentsContainer = document.getElementById('students-container');
+        const studentsGrid = document.getElementById('students-grid');
+
+        // چوونەژوورەوە لە ڕێگەی خشتەی staff کە لەلایەن بەڕێوەبەرەوە دروستکراوە
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const user = document.getElementById('username').value.trim().toLowerCase();
+            const pass = document.getElementById('password').value.trim();
+
+            try {
+                const snap = await get(child(ref(db), `staff/${user}`));
+                if (snap.exists() && snap.val().password === pass) {
+                    currentTeacher = snap.val();
+                    document.getElementById('teacher-welcome').innerText = `مامۆستا: ${currentTeacher.name}`;
+                    loginSection.style.display = 'none';
+                    dashboardSection.style.display = 'block';
+                    loadClasses();
+                } else {
+                    alert('ناوی بەکارهێنەر یان پاسۆرد هەڵەیە!');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('هەڵە لە چوونەژوورەوە: ' + err.message);
+            }
+        });
+
+        document.getElementById('btn-logout').addEventListener('click', () => {
+            location.reload();
+        });
+
+        // هێنانی لیستەکانی پۆل
+        async function loadClasses() {
+            try {
+                const snap = await get(child(ref(db), 'students'));
+                if (snap.exists()) {
+                    const data = snap.val();
+                    const classes = new Set();
+                    Object.values(data).forEach(s => { if(s.class) classes.add(s.class); });
+                    
+                    classSelect.innerHTML = '<option value="">-- دیاریکردنی پۆل --</option>';
+                    classes.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c; opt.textContent = c;
+                        classSelect.appendChild(opt);
+                    });
+                }
+            } catch (err) {
+                console.error('هەڵە لە هێنانی پۆلەکان:', err);
+            }
+        }
+
+        // کاتێک پۆل هەڵدەبژێردرێت
+        classSelect.addEventListener('change', async (e) => {
+            const selectedClass = e.target.value;
+            if (!selectedClass) {
+                studentsContainer.style.display = 'none';
+                return;
+            }
+
+            absentCards.clear();
+            studentsGrid.innerHTML = 'چاوەڕوانبە...';
+            studentsContainer.style.display = 'block';
+
+            try {
+                const snap = await get(child(ref(db), 'students'));
+                if (snap.exists()) {
+                    const all = snap.val();
+                    classStudents = Object.values(all).filter(s => s.class === selectedClass);
+                    renderStudents();
+                } else {
+                    studentsGrid.innerHTML = 'هیچ قوتابییەک تۆمار نەکراوە.';
+                }
+            } catch (err) {
+                console.error(err);
+                studentsGrid.innerHTML = 'هەڵە لە هێنانی قوتابیان.';
+            }
+        });
+
+        function renderStudents() {
+            studentsGrid.innerHTML = '';
+            if(classStudents.length === 0) {
+                studentsGrid.innerHTML = 'هیچ قوتابییەک لەم پۆلە نادۆزرایەوە.';
+                return;
+            }
+
+            classStudents.forEach(st => {
+                const card = document.createElement('div');
+                card.className = `student-card ${absentCards.has(st.cardId) ? 'absent' : ''}`;
+                card.innerText = st.name;
+                card.addEventListener('click', () => {
+                    if (absentCards.has(st.cardId)) {
+                        absentCards.delete(st.cardId);
+                        card.classList.remove('absent');
+                    } else {
+                        absentCards.add(st.cardId);
+                        card.classList.add('absent');
+                    }
+                });
+                studentsGrid.appendChild(card);
+            });
+        }
+
+        // پاشکەوتکردنی غایبات لە داتابەیس (بەبێ ناردن بۆ بەخێوکەر)
+        document.getElementById('btn-save-attendance').addEventListener('click', async () => {
+            const selectedClass = classSelect.value;
+            if (!selectedClass) {
+                alert('تکایە سەرەتا پۆلێک هەڵبژێرە.');
+                return;
+            }
+            
+            const today = new Date().toISOString().split('T')[0];
+            
+            const absentList = classStudents
+                .filter(st => absentCards.has(st.cardId))
+                .map(st => ({ cardId: st.cardId, name: st.name }));
+
+            try {
+                await set(ref(db, `classroom_attendance/${today}/${selectedClass}`), {
+                    teacherName: currentTeacher.name,
+                    teacherUsername: currentTeacher.username || currentTeacher.name,
+                    timestamp: new Date().toLocaleTimeString('en-US'),
+                    absentStudents: absentList
+                });
+
+                alert('ڕاپۆرتی غایباتی ناوپۆل بە سەرکەوتوویی تۆمارکرا!');
+            } catch (err) {
+                alert('هەڵە لە پاشکەوتکردن: ' + err.message);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="ku" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>شاشەی پشکنینی کارت - </title>
+    <style>
+        :root {
+            --bg: #2c3e50;
+            --panel: #34495e;
+            --panel-dark: #1a252f;
+            --accent: #3498db;
+            --ok: #2ecc71;
+            --danger: #e74c3c;
+            --muted: #95a5a6;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: white;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .top-bar {
+            width: 100%; background: var(--panel-dark); padding: 10px 20px;
+            display: flex; justify-content: space-between; align-items: center; font-size: 13px;
+        }
+        .top-bar a { color: #8fc7e3; text-decoration: none; }
+        .top-bar a:hover { text-decoration: underline; }
+        .top-bar .staff-info { color: #cfe4f0; }
+        .top-bar .role-tag {
+            background: var(--ok); color: #0f2740; font-size: 11px; font-weight: bold;
+            padding: 2px 8px; border-radius: 10px; margin-right: 6px;
+        }
+        .top-bar .role-tag.admin { background: #f1c40f; }
+        .top-bar button {
+            background: none; border: 1px solid #445; color: #ccc; padding: 4px 12px;
+            border-radius: 6px; cursor: pointer; font-family: inherit; font-size: 12px;
+        }
+        .top-bar button:hover { background: #c0392b; border-color: #c0392b; color: white; }
+
+        /* ===== Layout: سەرەکی لای ڕاست، پانێڵی کۆنتڕۆڵ لای چەپ ===== */
+        .page-body {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 430px;   /* RTL: ستوونی یەکەم = ڕاست */
+            gap: 24px;
+            width: 100%;
+            max-width: 1750px;
+            padding: 24px;
+            flex: 1;
+            align-items: stretch;
+        }
+        .main-area {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            min-height: 0;
+        }
+        .main-area h2 { margin: 0; text-align: center; font-size: 32px; }
+
+        .side-panel {
+            background: var(--panel);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            padding: 30px;
+            align-self: start;
+            position: sticky;
+            top: 20px;
+            text-align: center;
+        }
+        .side-panel h3 { margin: 0 0 18px; font-size: 20px; color: #cfe4f0; }
+        .side-section + .side-section { margin-top: 28px; padding-top: 28px; border-top: 1px solid rgba(255,255,255,0.1); }
+
+        .control-panel {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        .control-panel .btn { flex: 1; min-width: 150px; padding: 16px 18px; font-size: 17px; }
+        .btn { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-family: inherit; }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-light { background: #ecf0f1; color: #222; }
+        .btn-danger { background-color: var(--danger); color: white; }
+        .btn-start { background-color: var(--ok); color: white; }
+        .btn-end { background-color: var(--muted); color: white; }
+        .btn-blue { background-color: var(--accent); color: white; width: 100%; padding: 20px; font-size: 20px; border: none; border-radius: 8px; cursor: pointer; font-family: inherit; }
+        .btn-blue:disabled { background-color: #5a6a78; cursor: not-allowed; }
+
+        .status-bar { background: var(--panel-dark); padding: 14px; border-radius: 8px; margin-bottom: 10px; font-size: 16px; }
+        .session-bar { background: var(--panel-dark); padding: 14px; border-radius: 8px; font-size: 16px; }
+        .session-bar.active { background: #1e6b3a; }
+
+        /* ===== کارتی قوتابی (گەورە) ===== */
+        .student-card-display {
+            background: white;
+            color: #333;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            flex: 1;
+            min-height: 600px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.25s;
+        }
+        .student-card-display img {
+            width: 290px;
+            height: 290px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid var(--panel);
+            background: #ddd;
+        }
+        .student-card-display h1 { font-size: 58px; margin: 26px 0 10px; }
+        .student-card-display h3 { font-size: 36px; margin: 8px 0; }
+        .blue-active { background-color: var(--accent) !important; color: white !important; }
+        .green-active { background-color: var(--ok) !important; color: white !important; }
+        .red-active { background-color: var(--danger) !important; color: white !important; }
+
+        /* Modal for "forgot card" */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal-box {
+            background: var(--panel);
+            padding: 34px;
+            border-radius: 14px;
+            width: 620px;
+            max-width: 94vw;
+            text-align: right;
+        }
+        .modal-box input {
+            width: 100%;
+            padding: 16px;
+            border-radius: 8px;
+            border: none;
+            margin: 14px 0;
+            font-size: 19px;
+            text-align: right;
+        }
+        .modal-error { color: #ff8a80; font-size: 13px; min-height: 18px; margin-bottom: 8px; }
+        .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+        .modal-actions .btn { padding: 14px 24px; font-size: 17px; }
+
+        .student-pick-list { max-height: 55vh; overflow-y: auto; margin-top: 6px; }
+        .student-pick-item {
+            background: var(--bg); padding: 18px 20px; border-radius: 8px; margin-bottom: 8px; font-size: 20px;
+            cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+            user-select: none;
+        }
+        .student-pick-item:hover { background: #3d5470; }
+        .student-pick-item .cls { color: var(--muted); font-size: 16px; }
+        .empty-pick { color: var(--muted); text-align: center; padding: 20px 0; font-size: 14px; }
+
+
+        /* ===== لۆگۆکان ===== */
+        .brand-card {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 22px 18px 16px;
+            margin-bottom: 26px;
+            text-align: center;
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.04);
+        }
+        .brand-card .school-logo { width: 100%; max-width: 260px; height: auto; display: block; margin: 0 auto; }
+        .powered-by {
+            margin-top: 28px; padding-top: 22px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            text-align: center;
+        }
+        .powered-by span { display: block; font-size: 12px; color: var(--muted); margin-bottom: 10px; letter-spacing: 1px; }
+        .powered-by .logo-wrap {
+            display: inline-block; background: #ffffff; border-radius: 12px; padding: 10px 16px;
+        }
+        .powered-by img { width: 105px; height: auto; display: block; }
+
+        /* مۆبایل / شاشەی بچووک: کارت لە سەرەوە، کۆنتڕۆڵ لە خوارەوە */
+        @media (max-width: 900px) {
+            .page-body { grid-template-columns: 1fr; padding: 14px; }
+            .side-panel { position: static; order: 2; }
+            .main-area { order: 1; }
+            .student-card-display { min-height: 320px; }
+            .student-card-display h1 { font-size: 28px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <div class="staff-info">
+            <span class="role-tag" id="role-tag">...</span>
+            <span id="staff-name-label">چاوەڕوانبە...</span>
+        </div>
+        <div style="display:flex; gap:14px; align-items:center;">
+            <a href="home.html">🏠 سەرەکی</a>
+            <a href="admin.html">🗂️ بەڕێوەبردن</a>
+            <button id="btn-logout">چوونەدەرەوە</button>
+        </div>
+    </div>
+
+    <div class="page-body">
+
+        <!-- ناوەڕاستی پەڕە (لای ڕاست): کارتی قوتابی -->
+        <main class="main-area">
+            <h2>سیستەمی تۆمارکردنی ئامادەبووان</h2>
+
+            <div class="student-card-display" id="student-display">
+                <img id="st-image" src="" alt="وێنەی قوتابی">
+                <h1 id="st-name">تکایە کارتەکە دابنێ...</h1>
+                <h3 id="st-class">---</h3>
+                <p id="st-card" style="margin:8px 0 0; color:#888; font-size:20px;">---</p>
+            </div>
+
+            <div class="teacher-action">
+                <button id="btn-forgot" class="btn-blue" disabled>قوتابی کارتەکەی بیرچووە؟ (تۆمارکردن بە هەڵبژاردن)</button>
+            </div>
+        </main>
+
+        <!-- پانێڵی کۆنتڕۆڵ (لای چەپ) -->
+        <aside class="side-panel">
+            <div class="brand-card">
+                <img class="school-logo" src="assets/images/logo-school.png" alt="ئامادەیی شۆڕشی نوێی کچان">
+            </div>
+
+            <div class="side-section">
+                <h3>پەیوەندی ئاردینۆ</h3>
+                <div class="control-panel">
+                    <button id="btn-connect" class="btn btn-light">پەیوەستکردنی (Serial)</button>
+                    <button id="btn-disconnect" class="btn btn-danger" style="display:none;">بڕینی پەیوەندی</button>
+                </div>
+                <div class="status-bar" id="connection-status">: پەیوەست نییە</div>
+            </div>
+
+            <div class="side-section">
+                <h3>دەوام</h3>
+                <div class="control-panel">
+                    <button id="btn-start" class="btn btn-start">دەستپێکردنی دەوام</button>
+                    <button id="btn-end" class="btn btn-end" disabled>کۆتایی دەوام</button>
+                </div>
+                <div class="session-bar" id="session-status">دەوام: دەستپێنەکراوە</div>
+            </div>
+
+            <div class="powered-by">
+                <span>POWERED BY</span>
+                <div class="logo-wrap"><img src="assets/images/logo-arduexcel.png" alt="ArduExcel"></div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Modal بۆ تۆمارکردنی قوتابی کە کارتی بیرچووە -->
+    <div class="modal-overlay" id="forgot-modal">
+        <div class="modal-box">
+            <h3 style="margin-top:0; font-size:26px;">کام قوتابی کارتەکەی بیرچووە؟</h3>
+            <p style="font-size:15px; color:#bdc3c7; margin-top:-8px;">(دوو کلیک بکه بۆ تۆمارکردن بە "هاتوو")</p>
+            <input type="text" id="forgot-search" placeholder="گەڕان بە ناو یان پۆل...">
+            <div class="modal-error" id="forgot-error"></div>
+            <div class="student-pick-list" id="forgot-list"></div>
+            <div class="modal-actions" style="margin-top:12px;">
+                <button class="btn btn-end" id="forgot-cancel">پاشگەزبوونەوە</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { app } from "./js/firebase-config.js";
+        import { requireStaffAuth, logout } from "./js/auth-guard.js";
+        import { 
+            getDatabase, ref, set, get, child, onValue, update 
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        // بەکارهێنانی Realtime Database
+        const db = getDatabase(app);
+
+        // ===== پاسەوانی چوونەژوورەوە: پێش هەموو شتێک دڵنیابە ستافە =====
+        const staff = await requireStaffAuth();
+        document.getElementById('staff-name-label').innerText = staff.name;
+        const roleTag = document.getElementById('role-tag');
+        roleTag.innerText = staff.role === 'admin' ? 'بەڕێوەبەر' : 'ستاف';
+        if (staff.role === 'admin') roleTag.classList.add('admin');
+        document.getElementById('btn-logout').addEventListener('click', logout);
+
+        // ===== وێنەی جێگرەوە =====
+        const PLACEHOLDER_IMG = "data:image/svg+xml;utf8," + encodeURIComponent(
+            `<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150'>
+                <rect width='150' height='150' fill='#dfe6e9'/>
+                <circle cx='75' cy='58' r='30' fill='#b2bec3'/>
+                <rect x='30' y='95' width='90' height='50' rx='25' fill='#b2bec3'/>
+            </svg>`
+        );
+        document.getElementById('st-image').src = PLACEHOLDER_IMG;
+
+        // ===== دەنگی فیدباک =====
+        function beep(freq, duration, type = "sine") {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = freq;
+                osc.type = type;
+                gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                osc.start();
+                osc.stop(ctx.currentTime + duration);
+                osc.onended = () => ctx.close();
+            } catch (e) { }
+        }
+        const soundSuccess = () => beep(880, 0.15);
+        const soundError = () => { beep(220, 0.2, "square"); };
+        const soundNotFound = () => { beep(300, 0.12, "square"); setTimeout(() => beep(300, 0.12, "square"), 160); };
+
+        // ===== دۆخی گشتی =====
+        let port = null, reader = null, keepReading = false;
+        let manualDisconnect = false;     // ئەگەر بەکارهێنەر خۆی پەیوەندییەکەی بڕی، ئۆتۆماتیک دووبارە نەبەستێتەوە
+        let reconnectTimer = null;
+        let sessionActive = false;
+        let currentDateStr = null;
+        let lastCardId = null;
+        let lastScanTime = 0;
+        const SCAN_COOLDOWN_MS = 4000;
+        const SERIAL_BAUD_RATE = 9600;    // دەبێت لەگەڵ Serial.begin() ی ئاردینۆکە یەک بێت
+
+        let studentsCache = {};      // { cardId: {name, class, imageUrl} }
+        let attendanceCache = {};    // { cardId: {status, ...} }
+
+        // خوێندنەوەی بەردەوامی هەموو قوتابییان لە Realtime Database
+        onValue(ref(db, "students"), (snap) => {
+            studentsCache = {};
+            if (snap.exists()) {
+                studentsCache = snap.val();
+            }
+        }, (err) => console.error("هەڵەی خوێندنەوەی قوتابییان:", err));
+
+        function subscribeAttendance(day) {
+            onValue(ref(db, `attendance/${day}/records`), (snap) => {
+                attendanceCache = {};
+                if (snap.exists()) {
+                    attendanceCache = snap.val();
+                }
+            }, (err) => console.error("هەڵەی خوێندنەوەی ئامادەبوون:", err));
+        }
+
+        const el = (id) => document.getElementById(id);
+        const connStatus = el('connection-status');
+        const sessionStatus = el('session-status');
+        const display = el('student-display');
+        const btnConnect = el('btn-connect');
+        const btnDisconnect = el('btn-disconnect');
+        const btnStart = el('btn-start');
+        const btnEnd = el('btn-end');
+        const btnForgot = el('btn-forgot');
+
+        const serialSupported = ("serial" in navigator);
+        if (!serialSupported) {
+            connStatus.innerText = ": ئەم وێبگەڕە پشتگیری Web Serial ناکات (Chrome/Edge بەکاربهێنە)";
+            btnConnect.disabled = true;
+        }
+
+        function resetDisplay(message = "تکایە کارتەکە دابنێ...") {
+            el('st-image').src = PLACEHOLDER_IMG;
+            el('st-name').innerText = message;
+            el('st-class').innerText = "---";
+            el('st-card').innerText = "---";
+            display.classList.remove('blue-active', 'green-active', 'red-active');
+        }
+
+        // ===== دەستپێکردن/کۆتایی دەوام =====
+        btnStart.addEventListener('click', () => {
+            currentDateStr = new Date().toISOString().split('T')[0];
+            sessionActive = true;
+            sessionStatus.innerText = `دەوام: چالاکە (${currentDateStr})`;
+            sessionStatus.classList.add('active');
+            btnStart.disabled = true;
+            btnEnd.disabled = false;
+            btnForgot.disabled = false;
+            subscribeAttendance(currentDateStr);
+            resetDisplay();
+        });
+
+        btnEnd.addEventListener('click', async () => {
+            const notArrived = Object.keys(studentsCache).filter(cardId => {
+                const rec = attendanceCache[cardId];
+                return !rec || rec.status === 'absent';
+            });
+
+            if (notArrived.length > 0) {
+                const ok = confirm(
+                    `${notArrived.length} قوتابی هێشتا تۆمار نەکراون. ئایا دەتەوێت وەک "نەهاتوو" تۆمار بکرێن؟\n` +
+                    `(ئەمە دەبێتە هۆی ئاگادارکردنەوەی بەخێوکەرانیان)`
+                );
+                if (ok) {
+                    btnEnd.disabled = true;
+                    btnEnd.textContent = 'چاوەڕوانبە...';
+                    try {
+                        const updates = {};
+                        notArrived.forEach(cardId => {
+                            updates[`attendance/${currentDateStr}/records/${cardId}`] = {
+                                status: 'absent',
+                                time: new Date().toISOString(),
+                                markedBy: staff.name
+                            };
+                        });
+                        await update(ref(db), updates);
+                    } catch (e) {
+                        alert("هەڵە لە تۆمارکردنی نەهاتووەکان: " + e.message);
+                    } finally {
+                        btnEnd.textContent = 'کۆتایی دەوام';
+                    }
+                }
+            }
+
+            sessionActive = false;
+            sessionStatus.innerText = "دەوام: کۆتایی هات";
+            sessionStatus.classList.remove('active');
+            btnStart.disabled = false;
+            btnEnd.disabled = true;
+            btnForgot.disabled = true;
+            resetDisplay("دەوام کۆتایی هات");
+        });
+
+        // =====================================================================
+        // ===== پەیوەستکردنی Serial (ئۆتۆماتیک + دەستی وەک پاشەکشە) =====
+        // =====================================================================
+        function setConnectedUI(connected, msg) {
+            if (connected) {
+                connStatus.innerText = ": پەیوەستە 🟢";
+                btnConnect.style.display = 'none';
+                btnDisconnect.style.display = 'inline-block';
+            } else {
+                connStatus.innerText = msg || ": پەیوەست نییە 🔴";
+                btnConnect.style.display = 'inline-block';
+                btnDisconnect.style.display = 'none';
+            }
+        }
+
+        let connecting = false;   // ڕێگری لە دوو هەوڵی هاوکات
+
+        async function openPort(p) {
+            if (port || connecting) return !!port;
+            connecting = true;
+            try {
+                try {
+                    await p.open({ baudRate: SERIAL_BAUD_RATE });
+                } catch (e) {
+                    if (e.name !== 'InvalidStateError') throw e;   // پێشتر کراوەتەوە = کێشە نییە
+                }
+                port = p;
+                keepReading = true;
+                setConnectedUI(true);
+                readSerial(p);
+                return true;
+            } catch (e) {
+                console.warn("کردنەوەی پۆرت سەرکەوتوو نەبوو:", e);
+                setConnectedUI(false, ": پۆرتەکە نەکرایەوە (لە تابێکی تر یان بەرنامەیەکی تر بەکاردێت؟) 🟡");
+                return false;
+            } finally {
+                connecting = false;
+            }
+        }
+
+        // هەوڵدان بۆ پەیوەستبوونی ئۆتۆماتیک بە ئاردینۆی ڕێگەپێدراو
+        async function autoConnect() {
+            if (!serialSupported || manualDisconnect || port || connecting) return;
+            clearTimeout(reconnectTimer);
+            let granted = [];
+            try { granted = await navigator.serial.getPorts(); } catch (e) { console.warn(e); }
+
+            if (granted.length > 0) {
+                if (await openPort(granted[0])) return;
+            } else {
+                setConnectedUI(false, ": ئاردینۆ نەدۆزرایەوە - ئەگەر جاری یەکەمە دوگمەی پەیوەستکردن بکە 🔴");
+            }
+            reconnectTimer = setTimeout(autoConnect, 3000);   // هەر ٣ چرکە جارێک دووبارە
+        }
+
+        if (serialSupported) {
+            navigator.serial.addEventListener('connect', () => { setTimeout(autoConnect, 500); });
+            navigator.serial.addEventListener('disconnect', (e) => {
+                if (e.target === port) {
+                    keepReading = false;
+                    if (reader) reader.cancel().catch(() => {});
+                }
+            });
+            autoConnect();    // کاتی کردنەوەی پەڕەکە
+        }
+
+        // دوگمەی دەستی: تەنها بۆ جاری یەکەم (ڕێگەپێدانی وێبگەڕ)
+        btnConnect.addEventListener('click', async () => {
+            try {
+                manualDisconnect = false;
+                const p = await navigator.serial.requestPort();
+                await openPort(p);
+            } catch (e) {
+                if (e.name !== 'NotFoundError') alert("پەیوەستکردن سەرکەوتوو نەبوو: " + e);
+            }
+        });
+
+        btnDisconnect.addEventListener('click', async () => {
+            manualDisconnect = true;
+            clearTimeout(reconnectTimer);
+            keepReading = false;
+            try { if (reader) await reader.cancel(); } catch (e) {}
+        });
+
+        async function readSerial(p) {
+            let buffer = "";
+            let flushTimer = null;
+            const flush = () => {
+                const id = buffer.trim();
+                buffer = "";
+                if (id.length > 3) handleScan(id);
+            };
+
+            try {
+                while (p.readable && keepReading) {
+                    const decoder = new TextDecoderStream();
+                    const closed = p.readable.pipeTo(decoder.writable).catch(() => {});
+                    reader = decoder.readable.getReader();
+                    try {
+                        while (keepReading) {
+                            const { value, done } = await reader.read();
+                            if (done) break;
+                            if (value) {
+                                buffer += value;
+                                clearTimeout(flushTimer);
+                                const parts = buffer.split(/\r?\n/);
+                                buffer = parts.pop();
+                                parts.forEach(line => {
+                                    const id = line.trim();
+                                    if (id.length > 3) handleScan(id);
+                                });
+                                if (buffer) flushTimer = setTimeout(flush, 80);
+                            }
+                        }
+                    } catch (error) {
+                        console.error("هەڵەی خوێندنەوەی serial:", error);
+                        await new Promise(r => setTimeout(r, 200));
+                    } finally {
+                        clearTimeout(flushTimer);
+                        try { await reader.cancel(); } catch (e) {}
+                        try { reader.releaseLock(); } catch (e) {}
+                        reader = null;
+                        await closed;
+                    }
+                }
+            } finally {
+                try { await p.close(); } catch (e) {}
+                if (port === p) {
+                    port = null;
+                    setConnectedUI(false);
+                    if (!manualDisconnect) autoConnect();
+                }
+            }
+        }
+
+        // ===== لۆجیکی سکان =====
+        function handleScan(cardId) {
+            if (!sessionActive) {
+                resetDisplay("دەوام دەستپێنەکراوە - تکایە یەکەم جار (دەستپێکردنی دەوام) بکە");
+                display.classList.add('red-active');
+                soundError();
+                return;
+            }
+            const now = Date.now();
+            if (cardId === lastCardId && (now - lastScanTime) < SCAN_COOLDOWN_MS) {
+                return;
+            }
+            lastCardId = cardId;
+            lastScanTime = now;
+            checkStudentRFID(cardId);
+        }
+
+        async function checkStudentRFID(cardId) {
+            try {
+                const snapshot = await get(child(ref(db), `students/${cardId}`));
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    el('st-name').innerText = data.name || "بێ ناو";
+                    el('st-class').innerText = data.class || "---";
+                    el('st-card').innerText = cardId;
+                    el('st-image').src = data.imageUrl || PLACEHOLDER_IMG;
+                    display.classList.remove('blue-active', 'green-active', 'red-active');
+
+                    await set(ref(db, `attendance/${currentDateStr}/records/${cardId}`), {
+                        status: 'present',
+                        name: data.name || null,
+                        class: data.class || null,
+                        time: new Date().toISOString(),
+                        markedBy: staff.name
+                    });
+                    soundSuccess();
+                } else {
+                    resetDisplay("کارتەکە نەناسراوە!");
+                    display.classList.add('red-active');
+                    soundNotFound();
+                }
+            } catch (e) {
+                console.error("هەڵەی پەیوەندی بە Firebase:", e);
+                resetDisplay("کێشەی ئینتەرنێت/سێرڤەر - تۆمار نەکرا، دووبارە هەوڵ بدەوە");
+                display.classList.add('red-active');
+                soundError();
+            }
+        }
+
+        // ===== Modal: قوتابی کارتەکەی بیرچووە / نەهاتووەکان =====
+        const forgotModal = el('forgot-modal');
+        const forgotSearch = el('forgot-search');
+        const forgotError = el('forgot-error');
+        const forgotList = el('forgot-list');
+
+        btnForgot.addEventListener('click', () => {
+            forgotSearch.value = "";
+            forgotError.innerText = "";
+            renderForgotList("");
+            forgotModal.classList.add('open');
+            forgotSearch.focus();
+        });
+
+        el('forgot-cancel').addEventListener('click', () => {
+            forgotModal.classList.remove('open');
+        });
+
+        forgotSearch.addEventListener('input', () => renderForgotList(forgotSearch.value.trim().toLowerCase()));
+
+        function renderForgotList(query) {
+            forgotList.innerHTML = '';
+            
+            // تەنیا ئەو قوتابییانە نیشان دەدات کە لە لیستەکەدا نیین یان دۆخیان غایبە (نەهاتوون)
+            const notArrived = Object.entries(studentsCache)
+                .filter(([cardId]) => {
+                    const rec = attendanceCache[cardId];
+                    return !rec || rec.status === 'absent';
+                })
+                .filter(([, s]) => {
+                    if (!query) return true;
+                    return (s.name || '').toLowerCase().includes(query) || (s.class || '').toLowerCase().includes(query);
+                })
+                .sort(([, a], [, b]) => (a.name || '').localeCompare(b.name || '', 'ckb'));
+
+            if (notArrived.length === 0) {
+                forgotList.innerHTML = '<div class="empty-pick">هیچ قوتابییەکی نەهاتوو یان غایب نەماوە</div>';
+                return;
+            }
+
+            notArrived.forEach(([cardId, s]) => {
+                const item = document.createElement('div');
+                item.className = 'student-pick-item';
+                item.innerHTML = `<span>${s.name || 'بێ ناو'}</span><span class="cls">${s.class || '---'}</span>`;
+                
+                // دوو کلیک بۆ بڵندکردن و وەک "هاتوو" (present) ئەژمارکردن
+                item.addEventListener('dblclick', () => markForgotCard(cardId, s, 'present'));
+                
+                // یەک کلیکیش وەک (forgot-card) تۆماری دەکات
+                item.addEventListener('click', (e) => {
+                    // ئەگەر دوو کلیک کرا، ڕێگری لە یەک کلیک بکە
+                    if (e.detail === 1) {
+                        setTimeout(() => {
+                            if (e.detail === 1) markForgotCard(cardId, s, 'forgot-card');
+                        }, 200);
+                    }
+                });
+
+                forgotList.appendChild(item);
+            });
+        }
+
+        async function markForgotCard(cardId, student, targetStatus = 'forgot-card') {
+            if (!sessionActive) {
+                forgotError.innerText = "دەوام دەستپێنەکراوە";
+                return;
+            }
+            try {
+                await set(ref(db, `attendance/${currentDateStr}/records/${cardId}`), {
+                    status: targetStatus,
+                    name: student.name || null,
+                    class: student.class || null,
+                    time: new Date().toISOString(),
+                    markedBy: staff.name
+                });
+                
+                forgotModal.classList.remove('open');
+                display.classList.remove('red-active', 'blue-active', 'green-active');
+                
+                if (targetStatus === 'present') {
+                    display.classList.add('green-active');
+                    el('st-name').innerText = (student.name || "تۆمارکرا") + " (هاتوو - دوو کلیک)";
+                } else {
+                    display.classList.add('blue-active');
+                    el('st-name').innerText = (student.name || "تۆمارکرا") + " (کارتی بیرچووە)";
+                }
+
+                el('st-class').innerText = student.class || "---";
+                el('st-card').innerText = cardId;
+                el('st-image').src = student.imageUrl || PLACEHOLDER_IMG;
+                soundSuccess();
+            } catch (e) {
+                forgotError.innerText = "کێشەی پەیوەندی، دووبارە هەوڵ بدەوە";
+            }
+        }
+    </script>
+</body>
+</html>
