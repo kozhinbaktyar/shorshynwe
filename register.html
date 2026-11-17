@@ -170,6 +170,34 @@
         .btn-cm-save { background:#27ae60; color:#fff; }
         .btn-cm-save:disabled { background:#9bd4b2; cursor:not-allowed; }
         .btn-cm-cancel { background:#ecf0f1; color:#333; }
+
+        /* ===== گۆڕینی کارتی هەمووان بەیەکجار ===== */
+        .btn-bulk-cards { background:#8e44ad; color:#fff; width:100%; padding:10px; font-size:14px; font-weight:bold; border-radius:5px; }
+        .btn-bulk-cards:hover { background:#732d91; }
+        .bulk-box { max-width:960px; }
+        .bulk-help { font-size:13px; color:#555; line-height:1.9; background:#f4f6f9; border-radius:8px; padding:10px 12px; margin-bottom:10px; }
+        .bulk-toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+        .bulk-toolbar select { width:auto; min-width:170px; margin:0; }
+        .bulk-toolbar button, .bulk-toolbar .btn-like { margin:0; padding:9px 12px; font-size:13px; }
+        .btn-like { background:#2980b9; color:#fff; border-radius:4px; cursor:pointer; display:inline-block; font-family:inherit; }
+        .btn-tpl { background:#34495e; color:#fff; }
+        .btn-clear-all { background:#ecf0f1; color:#333; }
+        .bulk-summary { margin:10px 0; font-size:13px; font-weight:bold; display:flex; gap:8px; flex-wrap:wrap; }
+        .bulk-summary span { padding:4px 12px; border-radius:12px; background:#ecf0f1; }
+        .bulk-summary .s-ok { background:#d5f5e3; color:#1e8449; }
+        .bulk-summary .s-err { background:#fadbd8; color:#c0392b; }
+        .bulk-summary .s-same { background:#fcf3cf; color:#9a7d0a; }
+        .bulk-table-wrap { max-height:48vh; overflow:auto; border:1px solid #ddd; border-radius:6px; }
+        .bulk-table-wrap table { margin:0; }
+        .bulk-table-wrap thead th { position:sticky; top:0; z-index:1; }
+        .bulk-input { direction:ltr; font-size:15px; }
+        .bulk-input.just-scanned { border-color:#16a085; background:#eafaf3; }
+        td.bulk-state { text-align:right; font-size:12px; min-width:150px; }
+        .bs-ok { color:#1e8449; font-weight:bold; }
+        .bs-err { color:#c0392b; font-weight:bold; }
+        .bs-same { color:#9a7d0a; font-weight:bold; }
+        .bulk-x { background:none; color:#999; padding:0 6px; font-size:14px; }
+        .bulk-progress { background:#eaf2f8; border-radius:8px; padding:10px; margin:8px 0; font-weight:bold; font-size:13px; text-align:center; }
     </style>
 </head>
 <body>
@@ -249,6 +277,14 @@
                     <input type="text" id="bulk-new-class" placeholder="ناوی پۆلە نوێیەکە بنووسە..." style="margin: 4px 0;">
                     <button type="button" class="btn-bulk-class" id="btn-rename-class">گۆڕینی پۆلی هەموو قوتابییەکانی ئەم پۆلە</button>
                 </div>
+
+                <div class="tool-box">
+                    <h4>💳 گۆڕینی کارتی هەمووان بەیەکجار</h4>
+                    <p style="font-size: 13px; color: #555; margin-top: 0;">
+                        خشتەیەک بۆ هەموو قوتابییان: کارتی نوێ بنووسە، بە کارتخوێن بەدوای یەکدا بیخوێنەرەوە، یان فایلی CSV بهێنە. پاشان بە یەک کلیک هەمووی نوێ دەکرێتەوە.
+                    </p>
+                    <button type="button" class="btn-bulk-cards" id="btn-bulk-cards">💳 کردنەوەی گۆڕینی بەکۆمەڵ</button>
+                </div>
             </div>
 
             <hr style="margin: 25px 0;">
@@ -316,6 +352,41 @@
         </div>
     </div>
 
+    <div class="modal-overlay" id="bulk-modal" hidden>
+        <div class="modal-box bulk-box" role="dialog" aria-modal="true">
+            <h3>💳 گۆڕینی کارتی هەمووان بەیەکجار</h3>
+            <div class="bulk-help">
+                <b>چۆنیەتی:</b> لە خانەی «کارتی نوێ» ژمارەکە بنووسە یان کارتەکە بخوێنەرەوە (دوای هەر کارتێک خۆی دەچێتە ڕیزی دواتر).
+                ئەو قوتابیانەی خانەکەیان بەتاڵە <b>ناگۆڕدرێن</b>. کاتێک هەموو هەڵەکان نەما، دوگمەی خوارەوە هەمووی بەیەکجار پاشکەوت دەکات.
+                <br>ئەگەر Excel بەکاردەهێنیت، ستوونی کارتەکان بکە بە <b>Text</b> بۆ ئەوەی ژمارە درێژەکان نەگۆڕدرێن.
+            </div>
+            <div class="bulk-toolbar">
+                <select id="bulk-scope"></select>
+                <button type="button" class="btn-tpl" id="bulk-export">📥 داگرتنی تێمپلەیت (CSV)</button>
+                <label class="btn-like">📤 هێنانی CSV<input type="file" id="bulk-import" accept=".csv,.txt,text/csv" hidden></label>
+                <button type="button" id="bulk-connect" class="btn-scan-connect">📡 پەیوەستکردنی کارتخوێن</button>
+                <button type="button" class="btn-clear-all" id="bulk-clear">🧹 پاککردنەوەی هەموو</button>
+            </div>
+            <div class="scan-status" id="bulk-scan-status"></div>
+            <div class="bulk-summary" id="bulk-summary"></div>
+            <div class="bulk-table-wrap">
+                <table>
+                    <thead><tr><th>#</th><th>کارتی کۆن</th><th>ناو</th><th>پۆل</th><th>کارتی نوێ</th><th>دۆخ</th></tr></thead>
+                    <tbody id="bulk-body"></tbody>
+                </table>
+            </div>
+            <label class="cm-check">
+                <input type="checkbox" id="bulk-move-history" checked>
+                <span>گواستنەوەی مێژووی ئامادەبوونی پێشووش بۆ کارتە نوێیەکان</span>
+            </label>
+            <div class="bulk-progress" id="bulk-progress" hidden></div>
+            <div class="modal-actions">
+                <button type="button" class="btn-cm-save" id="bulk-apply" disabled>پاشکەوتکردنی هەموو</button>
+                <button type="button" class="btn-cm-cancel" id="bulk-close">داخستن</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { app } from "./js/firebase-config.js";
         import { requireStaffAuth, logout } from "./js/auth-guard.js";
@@ -331,6 +402,7 @@
 
         let capturedImageBase64 = null;
         let studentsCache = [];
+        let bulkBusy = false;   // لە کاتی گۆڕینی بەکۆمەڵ لیستی سەرەکی دووبارە دروست نەکرێتەوە
         let webcamStream = null; // ناساندنی گۆڕاوی کامێرا بە شێوەی دروست
 
         function generateLinkCode(len = 14) {
@@ -499,10 +571,19 @@
                     if (st.class) classSet.add(st.class.trim());
                 });
             }
+            if (bulkBusy) return;
             populateClassDropdowns(Array.from(classSet));
             analyzeStudents();
             filterAndRenderStudents();
         });
+
+        function rebuildFromCache() {
+            const classSet = new Set();
+            studentsCache.forEach(st => { if (st.class) classSet.add(String(st.class).trim()); });
+            populateClassDropdowns(Array.from(classSet));
+            analyzeStudents();
+            filterAndRenderStudents();
+        }
 
         function populateClassDropdowns(classList) {
             const datalist = document.getElementById('class-list');
@@ -757,9 +838,18 @@
                 ? 'کارتخوێن پەیوەستە — کارتە نوێیەکە نزیک بکەوە'
                 : 'دەتوانیت ژمارەکە بنووسیت، یان بە کارتخوێنی USB (کیبۆرد) بیخوێنیتەوە، یان کارتخوێنی سریال پەیوەست بکەیت';
             s.className = 'scan-status' + (connected ? ' connected' : '');
+            const bc = document.getElementById('bulk-connect'), bs = document.getElementById('bulk-scan-status');
+            if (bc && bs) {
+                bc.style.display = connected ? 'none' : 'inline-block';
+                bs.innerText = connected
+                    ? 'کارتخوێن پەیوەستە — کارتەکان بەدوای یەکدا نزیک بکەوە'
+                    : 'کارتخوێنی USB (کیبۆرد): کلیک لە یەکەم خانە بکە و کارتەکان بخوێنەرەوە. یان کارتخوێنی سریال پەیوەست بکە.';
+                bs.className = 'scan-status' + (connected ? ' connected' : '');
+            }
         }
 
         function onCardScanned(value) {
+            if (!bulkOverlay.hidden) { bulkScan(value); return; }
             if (!cmOverlay.hidden) {                       // مۆداڵ کراوەیە → ژمارەکە دەچێتە ناو مۆداڵ
                 cmInput.value = value;
                 cmInput.classList.add('just-scanned');
@@ -888,6 +978,394 @@
         document.getElementById('cm-connect').addEventListener('click', () => btnConnect.click());
         cmOverlay.addEventListener('click', (e) => { if (e.target === cmOverlay) closeCardModal(); });
         document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !cmOverlay.hidden) closeCardModal(); });
+
+        /* ============ گۆڕینی کارتی هەمووان بەیەکجار ============ */
+        const bulkOverlay = document.getElementById('bulk-modal');
+        const bulk = { values: new Map(), visible: [], activeIdx: null, busy: false, raf: 0 };
+        const BULK_CHUNK_CHARS = 4000000;      // قەبارەی هەر نوێکردنەوەیەک (سنووری فایەربەیس 16MB ـە و وێنەکان base64ـن)
+        const SCI_NOTATION = /^\d+(\.\d+)?e[+-]?\d+$/i;
+        const bulkEl = (id) => document.getElementById(id);
+
+        function bulkScopeStudents() {
+            const scope = bulkEl('bulk-scope').value;
+            return studentsCache
+                .filter(st => scope === 'all' || (st.class || '') === scope)
+                .sort((a, b) => (a.class || '').localeCompare(b.class || '', 'ku') || (a.name || '').localeCompare(b.name || '', 'ku'));
+        }
+
+        function bulkValidate() {
+            const byKey = new Map(studentsCache.map(s => [s.keyId, s]));
+            const holders = new Map();                      // ژمارەی کارت -> کلیلی ئەو قوتابیانەی هەیانە
+            studentsCache.forEach(s => {
+                [s.keyId, s.cardId].forEach(c => {
+                    if (isRealCard(c) && !PUSH_ID.test(String(c))) {
+                        const n = normCard(c);
+                        if (!holders.has(n)) holders.set(n, new Set());
+                        holders.get(n).add(s.keyId);
+                    }
+                });
+            });
+            const byNew = new Map();
+            bulk.values.forEach((v, k) => {
+                const n = normCard(v);
+                if (!byNew.has(n)) byNew.set(n, []);
+                byNew.get(n).push(k);
+            });
+
+            const res = new Map();
+            let ok = 0, err = 0, same = 0;
+            bulk.values.forEach((v, k) => {
+                const st = byKey.get(k);
+                const n = normCard(v);
+                let state = 'ok', msg = '✅ ئامادەیە';
+                if (!st) { state = 'err'; msg = 'قوتابییەکە نەماوە'; }
+                else if (SCI_NOTATION.test(v)) { state = 'err'; msg = 'شێوەی زانستی (Excel) — ستوونەکە بکە بە Text'; }
+                else if (v.length > 64 || KEY_FORBIDDEN.test(v) || !isRealCard(v)) { state = 'err'; msg = 'ژمارەی کارت دروست نییە'; }
+                else if (n === normCard(displayCardOf(st)) || n === normCard(k)) { state = 'same'; msg = 'هەمان کارتی ئێستایە — ناگۆڕدرێت'; }
+                else if (byNew.get(n).length > 1) {
+                    const other = byKey.get(byNew.get(n).find(x => x !== k));
+                    state = 'err'; msg = `دووبارەیە لەگەڵ «${other ? other.name : '?'}» لەم لیستەدا`;
+                } else {
+                    const hs = holders.get(n);
+                    const otherKey = hs && [...hs].find(x => x !== k);
+                    if (otherKey) {
+                        const o = byKey.get(otherKey);
+                        state = 'err'; msg = `ئەم کارتە ئێستا بۆ «${o ? o.name : '?'}» تۆمارکراوە`;
+                    }
+                }
+                res.set(k, { state, msg });
+                if (state === 'ok') ok++; else if (state === 'err') err++; else same++;
+            });
+            return { res, ok, err, same };
+        }
+
+        function bulkSchedule() {
+            if (bulk.raf) return;
+            bulk.raf = requestAnimationFrame(() => { bulk.raf = 0; bulkRefresh(); });
+        }
+
+        function bulkRefresh() {
+            const v = bulkValidate();
+            const visibleSet = new Set(bulk.visible);
+            bulkEl('bulk-body').querySelectorAll('tr').forEach(tr => {
+                const r = v.res.get(tr.dataset.key);
+                const cell = tr.querySelector('.bulk-state');
+                if (!r) { cell.innerHTML = ''; return; }
+                const cls = r.state === 'ok' ? 'bs-ok' : (r.state === 'err' ? 'bs-err' : 'bs-same');
+                cell.innerHTML = `<span class="${cls}">${esc(r.msg)}</span> <button type="button" class="bulk-x" data-clear="${esc(tr.dataset.key)}" title="پاککردنەوە">✖</button>`;
+            });
+            let hiddenErr = 0;
+            v.res.forEach((r, k) => { if (r.state === 'err' && !visibleSet.has(k)) hiddenErr++; });
+            const empty = bulk.visible.filter(k => !bulk.values.has(k)).length;
+            bulkEl('bulk-summary').innerHTML =
+                `<span class="s-ok">ئامادە بۆ گۆڕین: ${v.ok}</span>` +
+                `<span class="s-err">هەڵە: ${v.err}${hiddenErr ? ` (${hiddenErr} لە پۆلی دیکە — «هەموو پۆلەکان» هەڵبژێرە)` : ''}</span>` +
+                `<span class="s-same">نەگۆڕدراو: ${v.same}</span>` +
+                `<span>بێ نرخ (ناگۆڕدرێن): ${empty}</span>`;
+            const btn = bulkEl('bulk-apply');
+            btn.disabled = bulk.busy || v.ok === 0 || v.err > 0;
+            btn.innerText = v.ok ? `✅ گۆڕینی ${v.ok} کارت بەیەکجار` : 'پاشکەوتکردنی هەموو';
+        }
+
+        function bulkRender() {
+            const list = bulkScopeStudents();
+            bulk.visible = list.map(s => s.keyId);
+            const body = bulkEl('bulk-body');
+            body.innerHTML = '';
+            list.forEach((st, i) => {
+                const old = displayCardOf(st);
+                const tr = document.createElement('tr');
+                tr.dataset.key = st.keyId;
+                tr.innerHTML = `
+                    <td>${i + 1}</td>
+                    <td dir="ltr">${old ? esc(old) : '<span class="status-badge-err">بێ کارت</span>'}</td>
+                    <td>${esc(st.name || '')}</td>
+                    <td>${esc(st.class || '')}</td>
+                    <td><input type="text" class="editable-cell bulk-input" dir="ltr" autocomplete="off" data-idx="${i}" data-key="${esc(st.keyId)}" value="${esc(bulk.values.get(st.keyId) || '')}"></td>
+                    <td class="bulk-state"></td>`;
+                body.appendChild(tr);
+            });
+            bulkRefresh();
+        }
+
+        function bulkInput(idx) { return bulkEl('bulk-body').querySelector(`.bulk-input[data-idx="${idx}"]`); }
+
+        function bulkSetValue(key, value) {
+            value = String(value ?? '').trim();
+            if (value) bulk.values.set(key, value); else bulk.values.delete(key);
+        }
+
+        function bulkScan(value) {
+            if (bulk.busy || !bulk.visible.length) return;
+            let idx = bulk.activeIdx;
+            if (idx == null || idx >= bulk.visible.length || bulk.values.has(bulk.visible[idx])) {
+                idx = bulk.visible.findIndex(k => !bulk.values.has(k));
+            }
+            if (idx < 0) { bulkEl('bulk-scan-status').innerText = 'هەموو ڕیزەکان پڕن — ڕیزێک پاک بکەرەوە ئەگەر دەتەوێت بیگۆڕیت'; return; }
+            const key = bulk.visible[idx];
+            bulkSetValue(key, value);
+            const input = bulkInput(idx);
+            if (input) {
+                input.value = String(value).trim();
+                input.classList.add('just-scanned');
+                setTimeout(() => input.classList.remove('just-scanned'), 1200);
+            }
+            const next = bulk.visible.findIndex((k, i) => i > idx && !bulk.values.has(k));
+            bulk.activeIdx = next >= 0 ? next : null;
+            const nextInput = next >= 0 ? bulkInput(next) : null;
+            if (nextInput) { nextInput.focus(); nextInput.scrollIntoView && nextInput.scrollIntoView({ block: 'center' }); }
+            bulkRefresh();
+        }
+
+        const bulkBody = bulkEl('bulk-body');
+        bulkBody.addEventListener('input', (e) => {
+            const inp = e.target.closest('.bulk-input');
+            if (!inp) return;
+            bulkSetValue(inp.dataset.key, inp.value);
+            bulkSchedule();
+        });
+        bulkBody.addEventListener('focusin', (e) => {
+            const inp = e.target.closest('.bulk-input');
+            if (!inp) return;
+            bulk.activeIdx = Number(inp.dataset.idx);
+            inp.select();
+        });
+        bulkBody.addEventListener('keydown', (e) => {
+            const inp = e.target.closest('.bulk-input');
+            if (!inp || e.key !== 'Enter') return;
+            e.preventDefault();                                   // کارتخوێنی کیبۆرد پاش ژمارەکە Enter دەنێرێت
+            const next = bulkInput(Number(inp.dataset.idx) + 1);
+            if (next) next.focus(); else bulkEl('bulk-apply').focus();
+        });
+        bulkBody.addEventListener('click', (e) => {
+            const x = e.target.closest('[data-clear]');
+            if (!x) return;
+            bulk.values.delete(x.dataset.clear);
+            const inp = [...bulkBody.querySelectorAll('.bulk-input')].find(i => i.dataset.key === x.dataset.clear);
+            if (inp) { inp.value = ''; inp.focus(); }
+            bulkRefresh();
+        });
+
+        function openBulkModal() {
+            bulk.values.clear();
+            bulk.activeIdx = null;
+            const classes = [...new Set(studentsCache.map(s => (s.class || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ku'));
+            const sel = bulkEl('bulk-scope');
+            sel.innerHTML = '<option value="all">هەموو پۆلەکان</option>' + classes.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+            const cur = document.getElementById('filter-class').value;
+            sel.value = classes.includes(cur) ? cur : 'all';
+            bulkEl('bulk-progress').hidden = true;
+            bulkEl('bulk-move-history').checked = true;
+            refreshModalScanUi();
+            bulkRender();
+            bulkOverlay.hidden = false;
+            const first = bulkInput(0);
+            if (first) setTimeout(() => first.focus(), 50);
+        }
+
+        function closeBulkModal(force) {
+            if (bulk.busy) return;
+            if (!force && bulk.values.size && !confirm('ئەو ژمارە نوێیانەی نووسیوتن پاشکەوت نەکراون و لەدەست دەچن. دڵنیایت لە داخستن؟')) return;
+            bulkOverlay.hidden = true;
+            bulk.values.clear();
+        }
+
+        bulkEl('btn-bulk-cards').addEventListener('click', openBulkModal);
+        bulkEl('bulk-close').addEventListener('click', () => closeBulkModal(false));
+        bulkEl('bulk-scope').addEventListener('change', () => { bulk.activeIdx = null; bulkRender(); });
+        bulkEl('bulk-connect').addEventListener('click', () => btnConnect.click());
+        bulkEl('bulk-clear').addEventListener('click', () => {
+            if (!bulk.values.size || confirm('هەموو ژمارە نوێیەکان پاک بکرێنەوە؟')) { bulk.values.clear(); bulkRender(); }
+        });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !bulkOverlay.hidden) closeBulkModal(false); });
+
+        /* ---- CSV: تێمپلەیت و هێنان ---- */
+        function csvQuote(v) { return '"' + String(v ?? '').replace(/"/g, '""') + '"'; }
+
+        bulkEl('bulk-export').addEventListener('click', () => {
+            const list = bulkScopeStudents();
+            let csv = '\uFEFF' + ['کارتی کۆن', 'ناو', 'پۆل', 'کارتی نوێ', 'ID'].map(csvQuote).join(',') + '\n';
+            list.forEach(st => {
+                csv += [displayCardOf(st), st.name || '', st.class || '', bulk.values.get(st.keyId) || '', st.keyId].map(csvQuote).join(',') + '\n';
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'New_Cards_Template.csv';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        });
+
+        function parseCSV(text) {
+            text = String(text).replace(/^\uFEFF/, '');
+            const firstLine = text.split(/\r?\n/, 1)[0] || '';
+            const count = (ch) => firstLine.split(ch).length - 1;
+            const best = [[',', count(',')], [';', count(';')], ['\t', count('\t')]].sort((a, b) => b[1] - a[1])[0];
+            const delim = best[1] > 0 ? best[0] : ',';          // Excel لە هەندێک زمان ; بەکاردەهێنێت
+            const rows = []; let row = [], cell = '', inQ = false;
+            for (let i = 0; i < text.length; i++) {
+                const c = text[i];
+                if (inQ) {
+                    if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else inQ = false; }
+                    else cell += c;
+                } else if (c === '"') inQ = true;
+                else if (c === delim) { row.push(cell); cell = ''; }
+                else if (c === '\n' || c === '\r') {
+                    if (c === '\r' && text[i + 1] === '\n') i++;
+                    row.push(cell); cell = '';
+                    if (row.some(x => x.trim() !== '')) rows.push(row);
+                    row = [];
+                } else cell += c;
+            }
+            row.push(cell);
+            if (row.some(x => x.trim() !== '')) rows.push(row);
+            return rows.map(r => r.map(x => { x = x.trim(); return x.startsWith('=') ? x.replace(/^=\s*"?/, '').replace(/"$/, '') : x; }));
+        }
+
+        function importBulkCSV(text) {
+            const rows = parseCSV(text);
+            const byKey = new Map(studentsCache.map(s => [s.keyId, s]));
+            const byOld = new Map(), byNameClass = new Map();
+            studentsCache.forEach(s => {
+                [displayCardOf(s), s.keyId].filter(c => c && !PUSH_ID.test(c)).forEach(c => {
+                    const n = normCard(c);
+                    if (!byOld.has(n)) byOld.set(n, new Set());
+                    byOld.get(n).add(s.keyId);
+                });
+                const nc = normText(s.name) + '|' + normText(s.class);
+                if (!byNameClass.has(nc)) byNameClass.set(nc, new Set());
+                byNameClass.get(nc).add(s.keyId);
+            });
+
+            let matched = 0, skipped = 0, ambiguous = 0;
+            const unknown = [];
+            rows.forEach((r, i) => {
+                if (r.length < 2) return;
+                const newVal = r.length >= 4 ? r[3] : r[r.length - 1];
+                let key = null;
+                if (r.length >= 5 && byKey.has(r[4])) key = r[4];
+                if (!key && r[0]) {
+                    const set = byOld.get(normCard(r[0]));
+                    if (set && set.size === 1) key = [...set][0];
+                    else if (set && set.size > 1) { ambiguous++; return; }
+                }
+                if (!key && r.length >= 4) {
+                    const set = byNameClass.get(normText(r[1]) + '|' + normText(r[2]));
+                    if (set && set.size === 1) key = [...set][0];
+                    else if (set && set.size > 1) { ambiguous++; return; }
+                }
+                if (!key) { if (i > 0) unknown.push(r[0] || r[1] || '?'); return; }     // ڕیزی یەکەم ڕەنگە سەردێڕ بێت
+                if (!newVal) { skipped++; return; }
+                bulkSetValue(key, newVal);
+                matched++;
+            });
+            bulkEl('bulk-scope').value = 'all';
+            bulkRender();
+            let msg = `📤 ${matched} ڕیز هێنرا.`;
+            if (skipped) msg += ` ${skipped} ڕیز بێ کارتی نوێ بوون.`;
+            if (ambiguous) msg += ` ${ambiguous} ڕیز بەهۆی دووبارەبوونەوە نەناسرانەوە.`;
+            if (unknown.length) msg += ` ${unknown.length} ڕیز نەدۆزرانەوە (${unknown.slice(0, 5).join('، ')}${unknown.length > 5 ? '...' : ''}).`;
+            bulkEl('bulk-scan-status').innerText = msg;
+            bulkEl('bulk-scan-status').className = 'scan-status connected';
+        }
+
+        bulkEl('bulk-import').addEventListener('change', (e) => {
+            const f = e.target.files && e.target.files[0];
+            if (!f) return;
+            const reader = new FileReader();
+            reader.onload = () => { importBulkCSV(reader.result); e.target.value = ''; };
+            reader.readAsText(f, 'utf-8');
+        });
+
+        /* ---- پاشکەوتکردنی هەمووان ---- */
+        async function bulkApply() {
+            if (bulk.busy) return;
+            const v = bulkValidate();
+            if (!v.ok || v.err) return;
+            const keys = [];
+            v.res.forEach((r, k) => { if (r.state === 'ok') keys.push(k); });
+            if (!confirm(`کارتی ${keys.length} قوتابی دەگۆڕدرێت.\nئەم کارە ناگەڕێتەوە. بەردەوام دەبیت؟`)) return;
+
+            bulk.busy = true; bulkBusy = true;
+            const prog = bulkEl('bulk-progress');
+            prog.hidden = false;
+            document.querySelectorAll('#bulk-modal button, #bulk-modal select, #bulk-modal input').forEach(el => el.disabled = true);
+            let done = 0, movedDays = 0, skippedDays = 0, failure = null;
+
+            try {
+                const moveHistory = bulkEl('bulk-move-history').checked;
+                let attendanceAll = {};
+                if (moveHistory) {
+                    prog.innerText = 'خوێندنەوەی مێژووی ئامادەبوون...';
+                    const snap = await get(ref(db, 'attendance'));
+                    attendanceAll = snap.exists() ? snap.val() : {};
+                }
+
+                const byKey = new Map(studentsCache.map(s => [s.keyId, s]));
+                const bundles = keys.map(oldKey => {
+                    const st = byKey.get(oldKey);
+                    const nc = bulk.values.get(oldKey).trim();
+                    const data = {
+                        cardId: nc,
+                        class: st.class || '',
+                        imageUrl: st.imageUrl !== undefined ? st.imageUrl : (st.photo || ''),
+                        linkCode: st.linkCode || generateLinkCode(14),
+                        name: st.name || '',
+                        parentJoined: st.parentJoined !== undefined ? st.parentJoined : false
+                    };
+                    const ops = {};
+                    ops[`students/${nc}`] = data;
+                    ops[`students/${oldKey}`] = null;
+                    let size = JSON.stringify(data).length + 200;
+                    if (moveHistory && !PUSH_ID.test(oldKey)) {
+                        Object.keys(attendanceAll).forEach(day => {
+                            const recs = attendanceAll[day] && attendanceAll[day].records;
+                            if (!recs || recs[oldKey] === undefined) return;
+                            if (recs[nc] !== undefined) { skippedDays++; return; }
+                            ops[`attendance/${day}/records/${nc}`] = recs[oldKey];
+                            ops[`attendance/${day}/records/${oldKey}`] = null;
+                            size += JSON.stringify(recs[oldKey]).length + 120;
+                            movedDays++;
+                        });
+                    }
+                    return { oldKey, ops, size };
+                });
+
+                // دابەشکردن بۆ تاقمی بچووک (هەر قوتابییەک بە تەواوی لە یەک تاقمدایە)
+                const chunks = [];
+                let cur = { ops: {}, size: 0, keys: [] };
+                bundles.forEach(b => {
+                    if (cur.keys.length && cur.size + b.size > BULK_CHUNK_CHARS) { chunks.push(cur); cur = { ops: {}, size: 0, keys: [] }; }
+                    Object.assign(cur.ops, b.ops); cur.size += b.size; cur.keys.push(b.oldKey);
+                });
+                if (cur.keys.length) chunks.push(cur);
+
+                for (let i = 0; i < chunks.length; i++) {
+                    prog.innerText = `نوێکردنەوە ${i + 1} لە ${chunks.length} — ${done} لە ${bundles.length} قوتابی تەواو بوون...`;
+                    await update(ref(db), chunks[i].ops);
+                    chunks[i].keys.forEach(k => bulk.values.delete(k));
+                    done += chunks[i].keys.length;
+                }
+            } catch (err) {
+                console.error(err);
+                failure = err;
+            } finally {
+                bulk.busy = false; bulkBusy = false;
+                document.querySelectorAll('#bulk-modal button, #bulk-modal select, #bulk-modal input').forEach(el => el.disabled = false);
+                rebuildFromCache();
+                bulkEl('bulk-progress').hidden = true;
+            }
+
+            if (failure) {
+                alert(`⚠️ هەڵە ڕوویدا: ${failure.message}\n${done} قوتابی گۆڕدران. ئەوانی تر نەگۆڕدران — دەتوانیت دووبارە پاشکەوتی بکەیتەوە.`);
+                bulkRender();
+            } else {
+                alert(`✅ کارتی ${done} قوتابی بە سەرکەوتوویی گۆڕدرا.` +
+                    (movedDays ? `\nمێژووی ${movedDays} تۆماری ئامادەبوون گوێزرایەوە.` : '') +
+                    (skippedDays ? `\n(${skippedDays} تۆمار نەگوێزرانەوە چونکە کارتە نوێیەکە پێشتر تۆماری هەبوو.)` : ''));
+                closeBulkModal(true);
+            }
+        }
+        bulkEl('bulk-apply').addEventListener('click', bulkApply);
 
         document.getElementById('btn-fix-all-db').addEventListener('click', async () => {
             if (!confirm("ئایا دڵنیایت دەتەوێت پێکهاتەی هەموو قوتابییەکان لە فایەربەیس چاک بکەیت؟")) return;
