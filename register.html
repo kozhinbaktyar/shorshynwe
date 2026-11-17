@@ -815,6 +815,39 @@
             });
         }
 
+        /* ============ خوێندنەوەی مێژووی ئامادەبوون (بە پارێزراوی لە Permission denied) ============ */
+        const ATT_LOOKBACK_DAYS = 400;
+        async function loadAttendanceTree(onProgress) {
+            // 1) هەموو گرێی attendance یەکجار (خێراترین، بەڵام پێویستی بە ڕێگەپێدانی خوێندنەوە لەسەر attendance هەیە)
+            try {
+                const snap = await get(ref(db, 'attendance'));
+                return { data: snap.exists() ? snap.val() : {}, mode: 'full' };
+            } catch (e) { console.warn('attendance root read failed, falling back to day-by-day:', e.message); }
+
+            // 2) ئەگەر ڕێگەپێنەدرابوو: ڕۆژ بە ڕۆژ attendance/<ڕۆژ>/records (هەمان ڕێگەی سکانەر و بەڕێوەبەر)
+            const days = [];
+            const now = Date.now();
+            for (let i = 0; i < ATT_LOOKBACK_DAYS; i++) days.push(new Date(now - i * 86400000).toISOString().slice(0, 10));
+            const data = {};
+            let failed = 0, done = 0;
+            for (let i = 0; i < days.length; i += 20) {
+                const batch = days.slice(i, i + 20);
+                let batchFailed = 0;
+                await Promise.all(batch.map(async day => {
+                    try {
+                        const sn = await get(ref(db, `attendance/${day}/records`));
+                        if (sn.exists()) data[day] = { records: sn.val() };
+                    } catch (e) { failed++; batchFailed++; }
+                    done++;
+                }));
+                if (onProgress) onProgress(done, days.length);
+                if (i === 0 && batchFailed === batch.length) return { data: {}, mode: 'denied' };   // هیچ ڕێگەیەک نییە
+            }
+            return { data, mode: failed === days.length ? 'denied' : 'daily' };
+        }
+        const HISTORY_DENIED_Q = 'ڕێگەپێدان نییە بۆ خوێندنەوەی مێژووی ئامادەبوون (Permission denied).\nکارتەکە بگۆڕدرێت بەبێ گواستنەوەی مێژووی پێشوو؟\n(مێژووی پێشوو لەسەر کارتی کۆن دەمێنێتەوە)';
+        const HISTORY_DAILY_NOTE = `\n(مێژووی ${ATT_LOOKBACK_DAYS} ڕۆژی دوایی گوێزرایەوە، چونکە ڕێگەپێدان بۆ خوێندنەوەی هەموو مێژوو نییە)`;
+
         /* ============ مۆداڵی گۆڕینی کارت ============ */
         const cmOverlay = document.getElementById('card-modal');
         const cmInput = document.getElementById('cm-input');
@@ -939,11 +972,14 @@
                 };
                 updates[`students/${oldKey}`] = null;
 
-                let moved = 0;
+                let moved = 0, historyMode = 'none';
                 if (cmHistory.checked && !PUSH_ID.test(oldKey) && document.getElementById('cm-history-row').style.display !== 'none') {
-                    const snap = await get(ref(db, 'attendance'));
-                    if (snap.exists()) {
-                        const all = snap.val();
+                    cmSave.innerText = 'خوێندنەوەی مێژوو...';
+                    const att = await loadAttendanceTree();
+                    if (att.mode === 'denied' && !confirm(HISTORY_DENIED_Q)) return;
+                    historyMode = att.mode;
+                    {
+                        const all = att.data;
                         Object.keys(all).forEach(day => {
                             const recs = all[day] && all[day].records;
                             if (recs && recs[oldKey] !== undefined && recs[newCard] === undefined) {
@@ -957,7 +993,7 @@
 
                 await update(ref(db), updates);
                 closeCardModal();
-                alert(`✅ کارتی «${st.name || 'قوتابی'}» گۆڕدرا بۆ ${newCard}` + (moved ? `\nمێژووی ${moved} ڕۆژی ئامادەبوون گوێزرایەوە.` : ''));
+                alert(`✅ کارتی «${st.name || 'قوتابی'}» گۆڕدرا بۆ ${newCard}` + (moved ? `\nمێژووی ${moved} ڕۆژی ئامادەبوون گوێزرایەوە.` : '') + (historyMode === 'daily' ? HISTORY_DAILY_NOTE : '') + (historyMode === 'denied' ? '\n⚠️ مێژووی پێشوو نەگوێزرایەوە.' : ''));
             } catch (err) {
                 console.error(err);
                 cmMsg.innerText = 'هەڵە: ' + err.message;
@@ -1289,15 +1325,17 @@
             const prog = bulkEl('bulk-progress');
             prog.hidden = false;
             document.querySelectorAll('#bulk-modal button, #bulk-modal select, #bulk-modal input').forEach(el => el.disabled = true);
-            let done = 0, movedDays = 0, skippedDays = 0, failure = null;
+            let done = 0, movedDays = 0, skippedDays = 0, failure = null, historyMode = 'none';
 
             try {
                 const moveHistory = bulkEl('bulk-move-history').checked;
                 let attendanceAll = {};
                 if (moveHistory) {
                     prog.innerText = 'خوێندنەوەی مێژووی ئامادەبوون...';
-                    const snap = await get(ref(db, 'attendance'));
-                    attendanceAll = snap.exists() ? snap.val() : {};
+                    const att = await loadAttendanceTree((d, t) => { prog.innerText = `خوێندنەوەی مێژووی ئامادەبوون ${d} لە ${t}...`; });
+                    if (att.mode === 'denied' && !confirm(HISTORY_DENIED_Q)) { prog.hidden = true; return; }   // هیچ نەنووسراوە
+                    attendanceAll = att.data;
+                    historyMode = att.mode;
                 }
 
                 const byKey = new Map(studentsCache.map(s => [s.keyId, s]));
@@ -1361,7 +1399,9 @@
             } else {
                 alert(`✅ کارتی ${done} قوتابی بە سەرکەوتوویی گۆڕدرا.` +
                     (movedDays ? `\nمێژووی ${movedDays} تۆماری ئامادەبوون گوێزرایەوە.` : '') +
-                    (skippedDays ? `\n(${skippedDays} تۆمار نەگوێزرانەوە چونکە کارتە نوێیەکە پێشتر تۆماری هەبوو.)` : ''));
+                    (skippedDays ? `\n(${skippedDays} تۆمار نەگوێزرانەوە چونکە کارتە نوێیەکە پێشتر تۆماری هەبوو.)` : '') +
+                    (historyMode === 'daily' ? HISTORY_DAILY_NOTE : '') +
+                    (historyMode === 'denied' ? '\n⚠️ مێژووی پێشوو نەگوێزرایەوە.' : ''));
                 closeBulkModal(true);
             }
         }
