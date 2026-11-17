@@ -129,6 +129,47 @@
         .student-count-badge { background: #e67e22; color: white; padding: 5px 12px; border-radius: 12px; font-size: 13px; font-weight: bold; display: inline-block; margin-bottom: 10px; }
         .status-badge-ok { color: #27ae60; font-weight: bold; font-size: 12px; }
         .status-badge-err { color: #c0392b; font-weight: bold; font-size: 12px; }
+
+        /* ===== پشکنینی کارت + گۆڕینی کارت ===== */
+        .check-panel { background:#fff8e6; border:1px solid #f1d38a; border-radius:8px; padding:14px; margin:15px 0; }
+        .check-panel h4 { margin:0 0 10px; color:#7a5b00; }
+        .check-chips { display:flex; gap:8px; flex-wrap:wrap; }
+        .chip { background:#fff; border:1px solid #cfd6de; color:#2c3e50; padding:8px 14px; border-radius:18px; font-size:13px; font-weight:bold; margin:0; }
+        .chip b { background:#34495e; color:#fff; border-radius:10px; padding:1px 8px; margin-inline-start:6px; font-size:12px; }
+        .chip.warn b { background:#e67e22; }
+        .chip.danger b { background:#c0392b; }
+        .chip.active { background:#16324f; color:#fff; border-color:#16324f; }
+        .chip.active b { background:#f1c40f; color:#0f2740; }
+        .check-hint { font-size:13px; color:#7a5b00; margin-top:10px; line-height:1.9; }
+        .check-hint.ok { color:#1e8449; font-weight:bold; }
+        .card-chip { background:#eef6fb; border:1px dashed #2980b9; color:#16324f; font-weight:bold; padding:6px 10px; border-radius:6px; font-size:14px; direction:ltr; cursor:pointer; }
+        .card-chip:hover { background:#d9ecf8; }
+        .card-chip.nocard { background:#fdecea; border-color:#c0392b; color:#c0392b; direction:rtl; }
+        .flag { display:inline-block; font-size:11px; font-weight:bold; padding:2px 7px; border-radius:10px; margin:4px 2px 0; }
+        .flag-dup { background:#fdebd0; color:#b9770e; }
+        .flag-name { background:#e8daef; color:#6c3483; }
+        tr.row-dup td { background:#fff8ee; }
+        tr.row-nocard td { background:#fff3f2; }
+        tr.group-start td { border-top:3px solid #34495e; }
+
+        .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; z-index:1000; padding:16px; }
+        .modal-overlay[hidden] { display:none; }
+        .modal-box { background:#fff; border-radius:12px; width:100%; max-width:460px; padding:22px; box-shadow:0 10px 40px rgba(0,0,0,.3); max-height:92vh; overflow-y:auto; }
+        .modal-box h3 { margin:0 0 12px; }
+        .modal-info { background:#f4f6f9; border-radius:8px; padding:10px 12px; font-size:14px; line-height:1.9; margin-bottom:10px; }
+        .modal-box label.lbl { display:block; font-weight:bold; font-size:13px; margin-top:6px; }
+        #cm-input { direction:ltr; text-align:center; font-size:18px; letter-spacing:1px; }
+        #cm-input.just-scanned { border-color:#16a085; background:#eafaf3; }
+        .cm-msg { font-size:13px; min-height:20px; margin:4px 0 8px; font-weight:bold; }
+        .cm-msg.ok { color:#1e8449; }
+        .cm-msg.err { color:#c0392b; }
+        .cm-check { display:flex; gap:8px; align-items:center; font-size:13px; margin:8px 0; cursor:pointer; }
+        .cm-check input { width:auto; margin:0; }
+        .modal-actions { display:flex; gap:8px; margin-top:10px; }
+        .modal-actions button { flex:1; padding:11px; font-size:15px; font-weight:bold; margin:0; }
+        .btn-cm-save { background:#27ae60; color:#fff; }
+        .btn-cm-save:disabled { background:#9bd4b2; cursor:not-allowed; }
+        .btn-cm-cancel { background:#ecf0f1; color:#333; }
     </style>
 </head>
 <body>
@@ -155,7 +196,7 @@
                     <button type="button" id="btn-scan-connect" class="btn-scan-connect">📡 پەیوەستکردنی کارتخوێن</button>
                     <button type="button" id="btn-scan-disconnect" class="btn-scan-disconnect" style="display:none;">بڕینی پەیوەندی</button>
                 </div>
-                <div class="scan-status" id="scan-status">کارتخوێن پەیوەست نییە — دوای پەیوەستکردن، کلیک لە هەر خانەی ژمارەی کارت بکە و کارت بخوێنەوە</div>
+                <div class="scan-status" id="scan-status">کارتخوێن پەیوەست نییە — دەتوانیت ژمارەی کارت بە دەست بنووسیت یان کارتخوێن پەیوەست بکەیت</div>
                 
                 <input type="text" id="student-name" placeholder="ناوی تەواو" required>
                 
@@ -214,6 +255,17 @@
 
             <h3>لیستی قوتابییان و فلتەری پۆلەکان</h3>
             
+            <div class="check-panel">
+                <h4>🔍 پشکنینی کارت و دووبارەکان</h4>
+                <div class="check-chips">
+                    <button type="button" class="chip active" data-check="all">هەموو <b id="cnt-all">0</b></button>
+                    <button type="button" class="chip warn" data-check="dup-card">🔁 کارتی دووبارە <b id="cnt-dup-card">0</b></button>
+                    <button type="button" class="chip warn" data-check="dup-name">👥 ناوی دووبارە <b id="cnt-dup-name">0</b></button>
+                    <button type="button" class="chip danger" data-check="no-card">🚫 بێ کارت <b id="cnt-no-card">0</b></button>
+                </div>
+                <div class="check-hint" id="check-hint"></div>
+            </div>
+
             <div class="table-controls">
                 <select id="filter-class">
                     <option value="all">هەموو پۆلەکان</option>
@@ -227,7 +279,7 @@
             <table>
                 <thead>
                     <tr>
-                        <th>ژمارەی کارت (RFID)</th>
+                        <th>ژمارەی کارت (RFID)<br><span style="font-size:11px;font-weight:normal;">کلیکی لێبکە بۆ گۆڕین</span></th>
                         <th>ناوی تەواو</th>
                         <th>پۆل</th>
                         <th>کۆدی بەخێوکەر</th>
@@ -236,6 +288,31 @@
                 </thead>
                 <tbody id="all-students-table-body"></tbody>
             </table>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="card-modal" hidden>
+        <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="cm-title">
+            <h3 id="cm-title">💳 گۆڕینی ژمارەی کارت</h3>
+            <div class="modal-info">
+                <div>قوتابی: <b id="cm-student"></b></div>
+                <div>کارتی ئێستا: <b id="cm-old" dir="ltr"></b></div>
+            </div>
+            <label class="lbl" for="cm-input">ژمارەی کارتی نوێ</label>
+            <input type="text" id="cm-input" placeholder="بنووسە یان کارتەکە بخوێنەوە" autocomplete="off">
+            <div class="card-scan-row" style="margin-top:2px;">
+                <button type="button" id="cm-connect" class="btn-scan-connect">📡 پەیوەستکردنی کارتخوێن</button>
+            </div>
+            <div class="scan-status" id="cm-scan-status"></div>
+            <div class="cm-msg" id="cm-msg"></div>
+            <label class="cm-check" id="cm-history-row">
+                <input type="checkbox" id="cm-move-history" checked>
+                <span>گواستنەوەی مێژووی ئامادەبوونی پێشووش بۆ کارتە نوێیەکە</span>
+            </label>
+            <div class="modal-actions">
+                <button type="button" class="btn-cm-save" id="cm-save" disabled>پاشکەوتکردن</button>
+                <button type="button" class="btn-cm-cancel" id="cm-cancel">پاشگەزبوونەوە</button>
+            </div>
         </div>
     </div>
 
@@ -271,22 +348,6 @@
         const btnDisconnect = document.getElementById('btn-scan-disconnect');
         const scanStatus = document.getElementById('scan-status');
         const cardIdInput = document.getElementById('card-id');
-        // ئەو خانەیەی دوایین جار کلیکی لەسەر کراوە، شوێنی نووسینی ژمارەی کارتە
-        let activeCardInput = cardIdInput;
-
-        cardIdInput.addEventListener('click', () => {
-            activeCardInput = cardIdInput;
-            scanStatus.innerText = 'ئامادەیە — کارت بخوێنەوە بۆ خانەی تۆمارکردنی قوتابی نوێ';
-        });
-
-        // خانەکانی ژمارەی کارت لە خشتەکەش وەک شوێنی خوێندنەوە کار دەکەن
-        document.getElementById('all-students-table-body').addEventListener('click', (event) => {
-            const field = event.target.closest('.card-number-input');
-            if (!field) return;
-            activeCardInput = field;
-            scanStatus.innerText = 'ئامادەیە — کارت بخوێنەوە بۆ گۆڕینی ژمارەی کارتی ئەم قوتابییە، پاشان نوێکردنەوە دابگرە';
-            scanStatus.className = 'scan-status connected';
-        });
 
         btnConnect.addEventListener('click', async () => {
             if (!("serial" in navigator)) {
@@ -310,8 +371,9 @@
                 await serialPort.open({ baudRate: 9600 });
                 btnConnect.style.display = 'none';
                 btnDisconnect.style.display = 'inline-block';
-                scanStatus.innerText = 'کارتخوێن پەیوەست بوو — کلیک لە خانەی ژمارەی کارت بکە، پاشان کارت بخوێنەوە';
+                scanStatus.innerText = 'کارتخوێن پەیوەست بوو — کارتەکە نزیک بکەوە';
                 scanStatus.className = 'scan-status connected';
+                refreshModalScanUi();
 
                 isReadingSerial = true;
                 readSerialData();
@@ -328,6 +390,7 @@
             btnDisconnect.style.display = 'none';
             scanStatus.innerText = 'کارتخوێن پەیوەست نییە';
             scanStatus.className = 'scan-status';
+            refreshModalScanUi();
         });
 
         async function readSerialData() {
@@ -344,18 +407,7 @@
                         if (buffer.includes("\n") || buffer.includes("\r")) {
                             let cardId = buffer.trim();
                             if (cardId.length > 0) {
-                                // ئەگەر خانەی هەڵبژێردراو چیتر لە پەڕەدا نەبوو، بگەڕێوە بۆ خانەی سەرەکی
-                                if (!activeCardInput || !activeCardInput.isConnected) {
-                                    activeCardInput = cardIdInput;
-                                }
-
-                                activeCardInput.value = cardId;
-                                activeCardInput.classList.add('just-scanned');
-                                activeCardInput.dispatchEvent(new Event('input', { bubbles: true }));
-                                activeCardInput.dispatchEvent(new Event('change', { bubbles: true }));
-                                setTimeout(() => {
-                                    if (activeCardInput) activeCardInput.classList.remove('just-scanned');
-                                }, 1500);
+                                onCardScanned(cardId);
                             }
                             buffer = "";
                         }
@@ -448,6 +500,7 @@
                 });
             }
             populateClassDropdowns(Array.from(classSet));
+            analyzeStudents();
             filterAndRenderStudents();
         });
 
@@ -483,6 +536,84 @@
             if (classList.includes(currentBulk)) bulkSelect.value = currentBulk;
         }
 
+        /* ============ یارمەتیدەرەکانی کارت و پشکنین ============ */
+        const INVALID_CARDS = new Set(['', '0', '-', 'null', 'undefined', 'nan', 'none']);
+        const PUSH_ID = /^-[A-Za-z0-9_-]{19}$/;            // کلیلی خۆکاری فایەربەیس — ژمارەی کارتی ڕاستەقینە نییە
+        const KEY_FORBIDDEN = /[.#$\[\]\/\u0000-\u001f\u007f]/;
+        const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const normCard = (v) => String(v ?? '').trim().toLowerCase();
+        const isRealCard = (v) => !INVALID_CARDS.has(normCard(v));
+        function normText(t) {
+            return String(t ?? '').normalize('NFKC')
+                .replace(/[\u064B-\u065F\u0640]/g, '')        // نیشانەی کورتکراو و کێشانی پیت
+                .replace(/ك/g, 'ک').replace(/[يى]/g, 'ی')     // جیاوازی کیبۆردی عەرەبی / کوردی
+                .replace(/\s+/g, ' ').trim().toLowerCase();
+        }
+        function displayCardOf(st) {
+            if (isRealCard(st.cardId)) return String(st.cardId).trim();
+            if (isRealCard(st.keyId) && !PUSH_ID.test(st.keyId)) return st.keyId;
+            return '';
+        }
+
+        let analysis = { dupCard: new Map(), dupName: new Map(), noCard: new Set(), cardGroups: 0, nameGroups: 0 };
+        let activeCheck = 'all';
+
+        function analyzeStudents() {
+            const byCard = new Map(), byName = new Map(), noCard = new Set();
+            studentsCache.forEach(st => {
+                const ids = new Set();
+                if (isRealCard(st.cardId)) ids.add(normCard(st.cardId));
+                if (isRealCard(st.keyId) && !PUSH_ID.test(st.keyId)) ids.add(normCard(st.keyId));
+                if (ids.size === 0) noCard.add(st.keyId);
+                ids.forEach(id => {
+                    if (!byCard.has(id)) byCard.set(id, new Set());
+                    byCard.get(id).add(st.keyId);
+                });
+                const n = normText(st.name);
+                if (n) {
+                    const k = n + ' | ' + normText(st.class);
+                    if (!byName.has(k)) byName.set(k, new Set());
+                    byName.get(k).add(st.keyId);
+                }
+            });
+            const dupCard = new Map(), dupName = new Map();
+            let cardGroups = 0, nameGroups = 0;
+            byCard.forEach((set, id) => { if (set.size > 1) { cardGroups++; set.forEach(k => { if (!dupCard.has(k)) dupCard.set(k, id); }); } });
+            byName.forEach((set, id) => { if (set.size > 1) { nameGroups++; set.forEach(k => { if (!dupName.has(k)) dupName.set(k, id); }); } });
+            analysis = { dupCard, dupName, noCard, cardGroups, nameGroups };
+
+            document.getElementById('cnt-all').innerText = studentsCache.length;
+            document.getElementById('cnt-dup-card').innerText = dupCard.size;
+            document.getElementById('cnt-dup-name').innerText = dupName.size;
+            document.getElementById('cnt-no-card').innerText = noCard.size;
+        }
+
+        function renderCheckHint(shown) {
+            const hint = document.getElementById('check-hint');
+            hint.className = 'check-hint';
+            const a = analysis;
+            if (activeCheck === 'dup-card') {
+                hint.innerText = a.dupCard.size ? `${a.cardGroups} ژمارەی کارتی دووبارە لە ${a.dupCard.size} قوتابیدا. هەر گروپێک پێکەوە نیشان دراوە — کارتی هەڵەکە بگۆڕە یان قوتابییە زیادەکە بسڕەوە.` : '✅ هیچ کارتێکی دووبارە نییە.';
+            } else if (activeCheck === 'dup-name') {
+                hint.innerText = a.dupName.size ? `${a.nameGroups} ناوی دووبارە (هەمان ناو و هەمان پۆل) لە ${a.dupName.size} تۆمارداو. ئەگەر یەک قوتابییە دوو جار تۆمارکراوە، یەکێکیان بسڕەوە.` : '✅ هیچ ناوێکی دووبارە نییە.';
+            } else if (activeCheck === 'no-card') {
+                hint.innerText = a.noCard.size ? `${a.noCard.size} قوتابی ژمارەی کارتیان نییە. لەسەر «دانانی کارت» کلیک بکە و ژمارەکە بنووسە یان کارتەکە بخوێنەوە.` : '✅ هەموو قوتابییان کارتیان هەیە.';
+            } else if (!a.dupCard.size && !a.dupName.size && !a.noCard.size && studentsCache.length) {
+                hint.innerText = '✅ هیچ کارتی دووبارە، ناوی دووبارە یان قوتابیی بێ کارت نییە.';
+                hint.className = 'check-hint ok';
+            } else {
+                hint.innerText = '';
+            }
+        }
+
+        document.querySelectorAll('.chip[data-check]').forEach(chip => {
+            chip.addEventListener('click', () => {
+                activeCheck = chip.dataset.check;
+                document.querySelectorAll('.chip[data-check]').forEach(c => c.classList.toggle('active', c === chip));
+                filterAndRenderStudents();
+            });
+        });
+
         function filterAndRenderStudents() {
             const selectedClass = document.getElementById('filter-class').value;
             const searchQuery = document.getElementById('student-search').value.toLowerCase();
@@ -490,41 +621,75 @@
             let filtered = studentsCache.filter(st => {
                 const stClass = st.class || "";
                 const stName = st.name || "";
-                const stCard = st.cardId || st.keyId || "";
+                const stCard = displayCardOf(st) || st.keyId || "";
                 const matchClass = (selectedClass === 'all' || stClass === selectedClass);
                 const matchSearch = (stName.toLowerCase().includes(searchQuery) || stCard.toLowerCase().includes(searchQuery));
-                return matchClass && matchSearch;
+                let matchCheck = true;
+                if (activeCheck === 'dup-card') matchCheck = analysis.dupCard.has(st.keyId);
+                else if (activeCheck === 'dup-name') matchCheck = analysis.dupName.has(st.keyId);
+                else if (activeCheck === 'no-card') matchCheck = analysis.noCard.has(st.keyId);
+                return matchClass && matchSearch && matchCheck;
             });
 
+            // لە دۆخی دووبارەکان، ئەوانەی پێکەوە دووبارەن لە تەنیشت یەک دەردەکەون
+            let groupOf = null;
+            if (activeCheck === 'dup-card') groupOf = analysis.dupCard;
+            if (activeCheck === 'dup-name') groupOf = analysis.dupName;
+            if (groupOf) {
+                filtered.sort((a, b) => String(groupOf.get(a.keyId)).localeCompare(String(groupOf.get(b.keyId)), 'ku') || (a.name || '').localeCompare(b.name || '', 'ku'));
+            }
+
             document.getElementById('student-count-display').innerText = `کۆی گشتی قوتابیان لەم فلتەرەدا: ${filtered.length}`;
-            renderTable(filtered);
+            renderCheckHint(filtered.length);
+            renderTable(filtered, groupOf);
         }
 
         document.getElementById('filter-class').addEventListener('change', filterAndRenderStudents);
         document.getElementById('student-search').addEventListener('input', filterAndRenderStudents);
 
-        function renderTable(list) {
+        function renderTable(list, groupOf) {
             const tbody = document.getElementById('all-students-table-body');
             tbody.innerHTML = '';
+            let prevGroup = null;
+
             list.forEach(st => {
                 const key = st.keyId;
-                const displayCard = st.cardId || key;
+                const displayCard = displayCardOf(st);
                 const isComplete = st.cardId && st.linkCode && st.imageUrl !== undefined && st.parentJoined !== undefined && !st.photo;
-                
+                const isDupCard = analysis.dupCard.has(key);
+                const isDupName = analysis.dupName.has(key);
+                const isNoCard = !displayCard;
+
+                const flags = [];
+                if (isDupCard) flags.push('<span class="flag flag-dup" title="ئەم ژمارەیە بۆ قوتابییەکی تریش تۆمارکراوە">🔁 کارتی دووبارە</span>');
+                if (isDupName) flags.push('<span class="flag flag-name" title="هەمان ناو و هەمان پۆل">👥 ناوی دووبارە</span>');
+
+                const cardBtn = isNoCard
+                    ? `<button type="button" class="card-chip nocard" data-key="${esc(key)}">🚫 بێ کارت — دانانی کارت</button>`
+                    : `<button type="button" class="card-chip" data-key="${esc(key)}" title="کلیک بکە بۆ گۆڕینی کارت">${esc(displayCard)} ✏️</button>`;
+
                 const tr = document.createElement('tr');
+                tr.dataset.key = key;
+                if (isDupCard || isDupName) tr.classList.add('row-dup');
+                if (isNoCard) tr.classList.add('row-nocard');
+                if (groupOf) {
+                    const g = groupOf.get(key);
+                    if (prevGroup !== null && g !== prevGroup) tr.classList.add('group-start');
+                    prevGroup = g;
+                }
                 tr.innerHTML = `
-                    <td><input type="text" class="editable-cell card-number-input" id="card-${key}" value="${displayCard}" title="کلیک بکە، پاشان کارت بخوێنەوە"></td>
-                    <td><input type="text" class="editable-cell" id="name-${key}" value="${st.name || ''}"></td>
-                    <td><input type="text" class="editable-cell" id="class-${key}" value="${st.class || ''}"></td>
+                    <td>${cardBtn}<div>${flags.join('')}</div></td>
+                    <td><input type="text" class="editable-cell" data-field="name" value="${esc(st.name || '')}">${st.imageUrl ? ' <span title="وێنەی هەیە">📷</span>' : ''}</td>
+                    <td><input type="text" class="editable-cell" data-field="class" value="${esc(st.class || '')}"></td>
                     <td>
-                        ${isComplete 
-                            ? `<span class="status-badge-ok">${st.linkCode}</span>` 
+                        ${isComplete
+                            ? `<span class="status-badge-ok">${esc(st.linkCode)}</span>`
                             : `<span class="status-badge-err">⚠️ پێویستی بە چاککردنە</span>`
                         }
                     </td>
                     <td>
-                        <button class="btn-update-row" data-key="${key}">نوێکردنەوە</button>
-                        <button class="btn-delete-row" data-key="${key}">سڕینەوە</button>
+                        <button class="btn-update-row" data-key="${esc(key)}">نوێکردنەوە</button>
+                        <button class="btn-delete-row" data-key="${esc(key)}">سڕینەوە</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -532,36 +697,26 @@
 
             tbody.querySelectorAll('.btn-update-row').forEach(btn => {
                 btn.onclick = async () => {
-                    const oldKey = btn.dataset.key;
-                    const newCardId = document.getElementById(`card-${oldKey}`).value.trim();
-                    const newName = document.getElementById(`name-${oldKey}`).value.trim();
-                    const newClass = document.getElementById(`class-${oldKey}`).value.trim();
+                    const key = btn.dataset.key;
+                    const tr = btn.closest('tr');
+                    const newName = tr.querySelector('[data-field="name"]').value.trim();
+                    const newClass = tr.querySelector('[data-field="class"]').value.trim();
 
-                    if (!newCardId || !newName || !newClass) {
-                        alert("تکایە هەموو خانەکان پڕبکەرەوە!");
+                    if (!newName || !newClass) {
+                        alert("ناو و پۆل نابێت بەتاڵ بن!");
                         return;
                     }
 
-                    const oldData = studentsCache.find(s => s.keyId === oldKey) || {};
-                    const finalImageUrl = oldData.imageUrl !== undefined ? oldData.imageUrl : (oldData.photo || "");
-                    const finalLinkCode = oldData.linkCode || generateLinkCode(14);
-                    const finalParentJoined = oldData.parentJoined !== undefined ? oldData.parentJoined : false;
-
+                    const oldData = studentsCache.find(s => s.keyId === key) || {};
                     const structuredStudent = {
-                        cardId: newCardId,
+                        cardId: displayCardOf(oldData),   // ژمارەی کارت لێرە ناگۆڕدرێت — بە کلیک لەسەر ژمارەکە دەگۆڕدرێت
                         class: newClass,
-                        imageUrl: finalImageUrl,
-                        linkCode: finalLinkCode,
+                        imageUrl: oldData.imageUrl !== undefined ? oldData.imageUrl : (oldData.photo || ""),
+                        linkCode: oldData.linkCode || generateLinkCode(14),
                         name: newName,
-                        parentJoined: finalParentJoined
+                        parentJoined: oldData.parentJoined !== undefined ? oldData.parentJoined : false
                     };
-
-                    if (newCardId !== oldKey) {
-                        await set(ref(db, `students/${newCardId}`), structuredStudent);
-                        await remove(ref(db, `students/${oldKey}`));
-                    } else {
-                        await set(ref(db, `students/${oldKey}`), structuredStudent);
-                    }
+                    await set(ref(db, `students/${key}`), structuredStudent);
                     alert("بە سەرکەوتوویی نوێکرایەوە!");
                 };
             });
@@ -573,7 +728,166 @@
                     }
                 };
             });
+
+            tbody.querySelectorAll('.card-chip').forEach(chip => {
+                chip.onclick = () => openCardModal(chip.dataset.key);
+            });
         }
+
+        /* ============ مۆداڵی گۆڕینی کارت ============ */
+        const cmOverlay = document.getElementById('card-modal');
+        const cmInput = document.getElementById('cm-input');
+        const cmMsg = document.getElementById('cm-msg');
+        const cmSave = document.getElementById('cm-save');
+        const cmHistory = document.getElementById('cm-move-history');
+        let cmKey = null;
+        let cmBusy = false;
+
+        function findCardOwner(card, exceptKey) {
+            const n = normCard(card);
+            return studentsCache.find(s => s.keyId !== exceptKey &&
+                (normCard(s.keyId) === n || (isRealCard(s.cardId) && normCard(s.cardId) === n)));
+        }
+
+        function refreshModalScanUi() {
+            const connected = !!serialPort;
+            document.getElementById('cm-connect').style.display = connected ? 'none' : 'inline-block';
+            const s = document.getElementById('cm-scan-status');
+            s.innerText = connected
+                ? 'کارتخوێن پەیوەستە — کارتە نوێیەکە نزیک بکەوە'
+                : 'دەتوانیت ژمارەکە بنووسیت، یان بە کارتخوێنی USB (کیبۆرد) بیخوێنیتەوە، یان کارتخوێنی سریال پەیوەست بکەیت';
+            s.className = 'scan-status' + (connected ? ' connected' : '');
+        }
+
+        function onCardScanned(value) {
+            if (!cmOverlay.hidden) {                       // مۆداڵ کراوەیە → ژمارەکە دەچێتە ناو مۆداڵ
+                cmInput.value = value;
+                cmInput.classList.add('just-scanned');
+                setTimeout(() => cmInput.classList.remove('just-scanned'), 1500);
+                updateModalState();
+                cmInput.focus();
+                return;
+            }
+            cardIdInput.value = value;
+            cardIdInput.classList.add('just-scanned');
+            setTimeout(() => cardIdInput.classList.remove('just-scanned'), 1500);
+        }
+
+        function validateNewCard() {
+            const v = cmInput.value.trim();
+            const st = studentsCache.find(s => s.keyId === cmKey);
+            if (!v) return { ok: false, msg: '' };
+            if (v.length > 64 || KEY_FORBIDDEN.test(v)) return { ok: false, msg: 'ژمارەی کارت نابێت ئەم هێمایانەی تێدابێت: . # $ [ ] /' };
+            if (!isRealCard(v)) return { ok: false, msg: 'ئەم ژمارەیە دروست نییە' };
+            if (st && normCard(v) === normCard(displayCardOf(st))) return { ok: false, msg: 'ئەمە هەمان کارتی ئێستایە' };
+            const owner = findCardOwner(v, cmKey);
+            if (owner) return { ok: false, msg: `❌ ئەم کارتە پێشتر بۆ «${owner.name || 'قوتابی'}» (${owner.class || '-'}) تۆمارکراوە` };
+            return { ok: true, msg: '✅ کارتەکە بەتاڵە و دەتوانرێت بەکاربهێنرێت' };
+        }
+
+        function updateModalState() {
+            const r = validateNewCard();
+            cmMsg.innerText = r.msg;
+            cmMsg.className = 'cm-msg' + (r.msg ? (r.ok ? ' ok' : ' err') : '');
+            cmSave.disabled = !r.ok || cmBusy;
+        }
+
+        function openCardModal(key) {
+            const st = studentsCache.find(s => s.keyId === key);
+            if (!st) return;
+            cmKey = key;
+            cmBusy = false;
+            const old = displayCardOf(st);
+            document.getElementById('cm-student').innerText = `${st.name || ''} — ${st.class || ''}`;
+            document.getElementById('cm-old').innerText = old || 'بێ کارت';
+            document.getElementById('cm-title').innerText = old ? '💳 گۆڕینی ژمارەی کارت' : '💳 دانانی کارت';
+            document.getElementById('cm-history-row').style.display = (old && !PUSH_ID.test(key)) ? 'flex' : 'none';
+            cmHistory.checked = true;
+            cmInput.value = '';
+            cmSave.innerText = 'پاشکەوتکردن';
+            refreshModalScanUi();
+            updateModalState();
+            cmOverlay.hidden = false;
+            setTimeout(() => cmInput.focus(), 50);
+        }
+
+        function closeCardModal() {
+            cmOverlay.hidden = true;
+            cmKey = null;
+            cmBusy = false;
+        }
+
+        async function saveCardChange() {
+            if (cmBusy || cmKey === null) return;
+            const r = validateNewCard();
+            if (!r.ok) return;
+            const newCard = cmInput.value.trim();
+            const oldKey = cmKey;
+            const st = studentsCache.find(s => s.keyId === oldKey);
+            if (!st) return;
+
+            cmBusy = true;
+            cmSave.disabled = true;
+            cmSave.innerText = 'چاوەڕوانبە...';
+            try {
+                // پشکنینی کۆتایی لەسەر سێرڤەر (ئەگەر کەسێکی تر لە هەمان کاتدا ئەم کارتەی بەکارهێنابێت)
+                const exists = await get(ref(db, `students/${newCard}`));
+                if (exists.exists()) {
+                    cmMsg.innerText = '❌ ئەم کارتە ئێستا بۆ قوتابییەکی تر تۆمارکراوە';
+                    cmMsg.className = 'cm-msg err';
+                    return;
+                }
+
+                const updates = {};
+                updates[`students/${newCard}`] = {
+                    cardId: newCard,
+                    class: st.class || '',
+                    imageUrl: st.imageUrl !== undefined ? st.imageUrl : (st.photo || ''),
+                    linkCode: st.linkCode || generateLinkCode(14),
+                    name: st.name || '',
+                    parentJoined: st.parentJoined !== undefined ? st.parentJoined : false
+                };
+                updates[`students/${oldKey}`] = null;
+
+                let moved = 0;
+                if (cmHistory.checked && !PUSH_ID.test(oldKey) && document.getElementById('cm-history-row').style.display !== 'none') {
+                    const snap = await get(ref(db, 'attendance'));
+                    if (snap.exists()) {
+                        const all = snap.val();
+                        Object.keys(all).forEach(day => {
+                            const recs = all[day] && all[day].records;
+                            if (recs && recs[oldKey] !== undefined && recs[newCard] === undefined) {
+                                updates[`attendance/${day}/records/${newCard}`] = recs[oldKey];
+                                updates[`attendance/${day}/records/${oldKey}`] = null;
+                                moved++;
+                            }
+                        });
+                    }
+                }
+
+                await update(ref(db), updates);
+                closeCardModal();
+                alert(`✅ کارتی «${st.name || 'قوتابی'}» گۆڕدرا بۆ ${newCard}` + (moved ? `\nمێژووی ${moved} ڕۆژی ئامادەبوون گوێزرایەوە.` : ''));
+            } catch (err) {
+                console.error(err);
+                cmMsg.innerText = 'هەڵە: ' + err.message;
+                cmMsg.className = 'cm-msg err';
+            } finally {
+                cmBusy = false;
+                cmSave.innerText = 'پاشکەوتکردن';
+                if (!cmOverlay.hidden) updateModalState();
+            }
+        }
+
+        cmInput.addEventListener('input', updateModalState);
+        cmInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); saveCardChange(); }   // کارتخوێنی کیبۆرد پاش ژمارەکە Enter دەنێرێت
+        });
+        cmSave.addEventListener('click', saveCardChange);
+        document.getElementById('cm-cancel').addEventListener('click', closeCardModal);
+        document.getElementById('cm-connect').addEventListener('click', () => btnConnect.click());
+        cmOverlay.addEventListener('click', (e) => { if (e.target === cmOverlay) closeCardModal(); });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !cmOverlay.hidden) closeCardModal(); });
 
         document.getElementById('btn-fix-all-db').addEventListener('click', async () => {
             if (!confirm("ئایا دڵنیایت دەتەوێت پێکهاتەی هەموو قوتابییەکان لە فایەربەیس چاک بکەیت؟")) return;
@@ -697,6 +1011,16 @@
                     reader.onload = e => resolve(e.target.result);
                     reader.readAsDataURL(fileInput.files[0]);
                 });
+            }
+
+            if (!isRealCard(cardId) || cardId.length > 64 || KEY_FORBIDDEN.test(cardId)) {
+                alert("ژمارەی کارت دروست نییە (نابێت . # $ [ ] / تێدابێت).");
+                return;
+            }
+            const owner = findCardOwner(cardId, null);
+            if (owner) {
+                alert(`ئەم کارتە پێشتر بۆ «${owner.name || 'قوتابی'}» (${owner.class || '-'}) تۆمارکراوە.\nبۆ گۆڕین، لە لیستی خوارەوە کلیک لەسەر ژمارەی کارتەکەی بکە.`);
+                return;
             }
 
             const studentData = {
