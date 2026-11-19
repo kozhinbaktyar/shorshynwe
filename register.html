@@ -114,6 +114,16 @@
         .scan-status.connected { color: #16a085; font-weight: bold; }
         #card-id.just-scanned { border-color: #16a085; background: #eafaf3; }
 
+        .card-lookup { display:flex; gap:12px; align-items:center; padding:10px 12px; border-radius:8px; margin:0 0 12px; border:1px solid #f0c36d; background:#fff8e6; }
+        .card-lookup.new { border-color:#9bd8b8; background:#eafaf3; color:#16734f; font-size:13px; font-weight:bold; }
+        .card-lookup img { width:64px; height:64px; object-fit:cover; border-radius:8px; border:2px solid #34495e; flex-shrink:0; }
+        .card-lookup .cl-ph { width:64px; height:64px; border-radius:8px; background:#e3e8ee; display:flex; align-items:center; justify-content:center; font-size:28px; flex-shrink:0; }
+        .card-lookup .cl-info { flex:1; line-height:1.7; font-size:14px; }
+        .card-lookup .cl-warn { color:#b9770e; font-weight:bold; font-size:12px; }
+        .card-lookup .cl-name { font-weight:bold; font-size:16px; }
+        .card-lookup button { font-size:12px; padding:7px 10px; background:#2980b9; color:#fff; white-space:nowrap; }
+        .list-placeholder td { text-align:center; color:#7f8c8d; padding:28px 10px; }
+
         .table-controls { display: flex; gap: 10px; margin: 15px 0; flex-wrap: wrap; align-items: center; }
         .table-controls select, .table-controls input { flex: 1; min-width: 200px; margin: 0; }
         .btn-excel { background-color: #27ae60; color: white; padding: 10px 16px; border-radius: 5px; font-size: 14px; cursor: pointer; }
@@ -226,6 +236,8 @@
                 </div>
                 <div class="scan-status" id="scan-status">کارتخوێن پەیوەست نییە — دەتوانیت ژمارەی کارت بە دەست بنووسیت یان کارتخوێن پەیوەست بکەیت</div>
                 
+                <div class="card-lookup" id="card-lookup" hidden></div>
+
                 <input type="text" id="student-name" placeholder="ناوی تەواو" required>
                 
                 <input type="text" id="student-class" list="class-list" placeholder="پۆل (هەڵبژێرە یان بنووسە)" required autocomplete="off">
@@ -304,6 +316,7 @@
 
             <div class="table-controls">
                 <select id="filter-class">
+                    <option value="">-- پۆلێک هەڵبژێرە بۆ پیشاندانی لیست --</option>
                     <option value="all">هەموو پۆلەکان</option>
                 </select>
                 <input type="text" id="student-search" placeholder="گەڕان بە ناو یان کارت...">
@@ -535,10 +548,17 @@
         function takeSnapshot() {
             const canvas = document.getElementById('canvas');
             const ctx = canvas.getContext('2d');
-            canvas.width = video.videoWidth || 640;
-            canvas.height = video.videoHeight || 480;
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            capturedImageBase64 = canvas.toDataURL('image/jpeg');
+            const vw = video.videoWidth || 640, vh = video.videoHeight || 480;
+            const W = video.clientWidth || vw, H = video.clientHeight || vh;   // قەبارەی پیشاندراو
+            const z = parseFloat(zoomSlider.value) || 1;
+            // object-fit: cover + scale(zoom) => ئەو بەشەی لە ڕاستیدا دەیبینیت
+            const s = Math.max(W / vw, H / vh);
+            const sw = W / (s * z), sh = H / (s * z);
+            const sx = (vw - sw) / 2, sy = (vh - sh) / 2;
+            canvas.width = Math.round(sw);
+            canvas.height = Math.round(sh);
+            ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+            capturedImageBase64 = canvas.toDataURL('image/jpeg', 0.92);
             showPreview(capturedImageBase64);
             stopWebcam();
         }
@@ -575,6 +595,7 @@
             populateClassDropdowns(Array.from(classSet));
             analyzeStudents();
             filterAndRenderStudents();
+            showCardLookup();
         });
 
         function rebuildFromCache() {
@@ -594,7 +615,7 @@
             const currentBulk = bulkSelect.value;
 
             datalist.innerHTML = '';
-            filterSelect.innerHTML = '<option value="all">هەموو پۆلەکان</option>';
+            filterSelect.innerHTML = '<option value="">-- پۆلێک هەڵبژێرە بۆ پیشاندانی لیست --</option><option value="all">هەموو پۆلەکان</option>';
             bulkSelect.innerHTML = '<option value="">-- پۆلێک هەڵبژێرە بۆ گۆڕین --</option>';
 
             classList.sort().forEach(cls => {
@@ -613,7 +634,7 @@
                 bulkSelect.appendChild(opt3);
             });
 
-            if (classList.includes(currentFilter)) filterSelect.value = currentFilter;
+            if (currentFilter === 'all' || classList.includes(currentFilter)) filterSelect.value = currentFilter;
             if (classList.includes(currentBulk)) bulkSelect.value = currentBulk;
         }
 
@@ -699,11 +720,21 @@
             const selectedClass = document.getElementById('filter-class').value;
             const searchQuery = document.getElementById('student-search').value.toLowerCase();
 
+            // لیست نیشان نادرێت تا فلتەرێک هەڵنەبژێردرێت (یان «هەموو پۆلەکان»)
+            const hasFilter = selectedClass !== '' || searchQuery.trim() !== '' || activeCheck !== 'all';
+            if (!hasFilter) {
+                document.getElementById('student-count-display').innerText = `کۆی گشتی قوتابیان: ${studentsCache.length}`;
+                renderCheckHint(0);
+                document.getElementById('all-students-table-body').innerHTML =
+                    '<tr class="list-placeholder"><td colspan="5">📋 لیستەکە شاراوەیە — پۆلێک هەڵبژێرە، بگەڕێ، یان «هەموو پۆلەکان» هەڵبژێرە بۆ بینینی هەموو قوتابییان.</td></tr>';
+                return;
+            }
+
             let filtered = studentsCache.filter(st => {
                 const stClass = st.class || "";
                 const stName = st.name || "";
                 const stCard = displayCardOf(st) || st.keyId || "";
-                const matchClass = (selectedClass === 'all' || stClass === selectedClass);
+                const matchClass = (selectedClass === '' || selectedClass === 'all' || stClass === selectedClass);
                 const matchSearch = (stName.toLowerCase().includes(searchQuery) || stCard.toLowerCase().includes(searchQuery));
                 let matchCheck = true;
                 if (activeCheck === 'dup-card') matchCheck = analysis.dupCard.has(st.keyId);
@@ -881,6 +912,38 @@
             }
         }
 
+        const cardLookupEl = document.getElementById('card-lookup');
+        function hideCardLookup() { cardLookupEl.hidden = true; cardLookupEl.innerHTML = ''; }
+        function showCardLookup() {
+            const v = cardIdInput.value.trim();
+            if (!isRealCard(v)) { hideCardLookup(); return; }
+            const st = findCardOwner(v, null);
+            cardLookupEl.hidden = false;
+            if (!st) {
+                cardLookupEl.className = 'card-lookup new';
+                cardLookupEl.innerHTML = '✅ ئەم کارتە هێشتا تۆمار نەکراوە — دەتوانیت قوتابییەکی نوێی پێ تۆمار بکەیت.';
+                return;
+            }
+            const img = st.imageUrl || st.photo || '';
+            cardLookupEl.className = 'card-lookup';
+            cardLookupEl.innerHTML = `
+                ${img ? `<img src="${esc(img)}" alt="">` : '<div class="cl-ph">👤</div>'}
+                <div class="cl-info">
+                    <div class="cl-warn">⚠️ ئەم کارتە پێشتر تۆمارکراوە</div>
+                    <div class="cl-name">${esc(st.name || '—')}</div>
+                    <div>پۆل: <b>${esc(st.class || '—')}</b></div>
+                    <div>کۆدی بەخێوکەر: <b dir="ltr">${esc(st.linkCode || '—')}</b></div>
+                </div>
+                <button type="button" id="cl-show">پیشاندان لە لیستەکە</button>`;
+            document.getElementById('cl-show').onclick = () => {
+                document.getElementById('filter-class').value = 'all';
+                document.getElementById('student-search').value = v;
+                filterAndRenderStudents();
+                document.getElementById('all-students-table-body').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            };
+        }
+        cardIdInput.addEventListener('input', showCardLookup);
+
         function onCardScanned(value) {
             if (!bulkOverlay.hidden) { bulkScan(value); return; }
             if (!cmOverlay.hidden) {                       // مۆداڵ کراوەیە → ژمارەکە دەچێتە ناو مۆداڵ
@@ -894,6 +957,7 @@
             cardIdInput.value = value;
             cardIdInput.classList.add('just-scanned');
             setTimeout(() => cardIdInput.classList.remove('just-scanned'), 1500);
+            showCardLookup();
         }
 
         function validateNewCard() {
@@ -1483,7 +1547,7 @@
         document.getElementById('btn-download-excel').addEventListener('click', () => {
             const selectedClass = document.getElementById('filter-class').value;
             let listToExport = studentsCache;
-            if (selectedClass !== 'all') {
+            if (selectedClass !== 'all' && selectedClass !== '') {
                 listToExport = studentsCache.filter(st => st.class === selectedClass);
             }
 
@@ -1507,6 +1571,7 @@
         function resetFormKeepClass() {
             const currentClass = document.getElementById('student-class').value;
             document.getElementById('card-id').value = '';
+            hideCardLookup();
             document.getElementById('student-name').value = '';
             document.getElementById('student-file').value = '';
             document.getElementById('student-class').value = currentClass;
