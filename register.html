@@ -125,12 +125,10 @@
         .card-lookup button { font-size:12px; padding:7px 10px; background:#2980b9; color:#fff; white-space:nowrap; }
         .name-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
         .name-row #student-name { flex:1; min-width:180px; width:auto; }
-        .name-row #scan-code { flex:none; width:170px; direction:ltr; text-align:center; font-size:14px; border-style:dashed; border-color:#16a085; }
-        .name-row #scan-code.just-scanned { border-style:solid; background:#eafaf3; }
-        .scan-hint { font-size:12px; min-height:16px; margin:-2px 0 4px; font-weight:bold; color:#888; }
-        .scan-hint.ok { color:#16a085; }
-        .scan-hint.err { color:#c0392b; }
-        .scan-cell { direction:ltr; }
+        .tick-wrap { flex:none; display:flex; align-items:center; gap:6px; border:1px solid #ccc; border-radius:5px; padding:8px 12px; background:#fff; cursor:pointer; font-weight:bold; font-size:14px; margin:8px 0; user-select:none; }
+        .tick-wrap input, .tick-box { width:22px; height:22px; margin:0; cursor:pointer; accent-color:#27ae60; }
+        td.tick-cell { width:70px; }
+        tr.row-ticked td { background:#eafaf3; }
         .btn-excel-scanned { background-color:#16a085; color:#fff; padding:10px 16px; border-radius:5px; font-size:14px; cursor:pointer; }
         .btn-excel-scanned:hover { background-color:#12846e; }
         .list-placeholder td { text-align:center; color:#7f8c8d; padding:28px 10px; }
@@ -251,13 +249,8 @@
 
                 <div class="name-row">
                     <input type="text" id="student-name" placeholder="ناوی تەواو" required>
-                    <input type="text" id="scan-code" placeholder="🔍 سکان" title="کۆدی سکان — کۆدەکە لێرە سکان بکە" autocomplete="off" maxlength="100">
+                    <label class="tick-wrap" title="سەح لێدان"><input type="checkbox" id="student-tick"><span>سەح</span></label>
                 </div>
-                <div class="scan-hint" id="scan-hint"></div>
-                <label class="cm-check">
-                    <input type="checkbox" id="scan-autosave" checked>
-                    <span>دوای سکان، قوتابییەکە خۆکار پاشکەوت بکە (کاتێک کارت و ناو و پۆل پڕکرابنەوە)</span>
-                </label>
                 
                 <input type="text" id="student-class" list="class-list" placeholder="پۆل (هەڵبژێرە یان بنووسە)" required autocomplete="off">
                 <datalist id="class-list"></datalist>
@@ -329,6 +322,7 @@
                     <button type="button" class="chip warn" data-check="dup-card">🔁 کارتی دووبارە <b id="cnt-dup-card">0</b></button>
                     <button type="button" class="chip warn" data-check="dup-name">👥 ناوی دووبارە <b id="cnt-dup-name">0</b></button>
                     <button type="button" class="chip danger" data-check="no-card">🚫 بێ کارت <b id="cnt-no-card">0</b></button>
+                    <button type="button" class="chip" data-check="ticked">✔ سەحکراو <b id="cnt-ticked">0</b></button>
                 </div>
                 <div class="check-hint" id="check-hint"></div>
             </div>
@@ -340,7 +334,7 @@
                 </select>
                 <input type="text" id="student-search" placeholder="گەڕان بە ناو یان کارت...">
                 <button type="button" class="btn-excel" id="btn-download-excel">📥 داگرتنی ڕاپۆرت (xlsx)</button>
-                <button type="button" class="btn-excel-scanned" id="btn-download-scanned">📥 تەنیا سکانکراوەکان (xlsx)</button>
+                <button type="button" class="btn-excel-scanned" id="btn-download-ticked">📥 تەنیا سەحکراوەکان (xlsx)</button>
             </div>
 
             <div id="student-count-display" class="student-count-badge">کۆی گشتی قوتابیان: 0</div>
@@ -351,7 +345,7 @@
                         <th>ژمارەی کارت (RFID)<br><span style="font-size:11px;font-weight:normal;">کلیکی لێبکە بۆ گۆڕین</span></th>
                         <th>ناوی تەواو</th>
                         <th>پۆل</th>
-                        <th>کۆدی سکان</th>
+                        <th>سەح ✔</th>
                         <th>کۆدی بەخێوکەر</th>
                         <th>کردارەکان</th>
                     </tr>
@@ -709,6 +703,7 @@
             document.getElementById('cnt-dup-card').innerText = dupCard.size;
             document.getElementById('cnt-dup-name').innerText = dupName.size;
             document.getElementById('cnt-no-card').innerText = noCard.size;
+            document.getElementById('cnt-ticked').innerText = studentsCache.filter(s => s.ticked).length;
         }
 
         function renderCheckHint(shown) {
@@ -721,6 +716,8 @@
                 hint.innerText = a.dupName.size ? `${a.nameGroups} ناوی دووبارە (هەمان ناو و هەمان پۆل) لە ${a.dupName.size} تۆمارداو. ئەگەر یەک قوتابییە دوو جار تۆمارکراوە، یەکێکیان بسڕەوە.` : '✅ هیچ ناوێکی دووبارە نییە.';
             } else if (activeCheck === 'no-card') {
                 hint.innerText = a.noCard.size ? `${a.noCard.size} قوتابی ژمارەی کارتیان نییە. لەسەر «دانانی کارت» کلیک بکە و ژمارەکە بنووسە یان کارتەکە بخوێنەوە.` : '✅ هەموو قوتابییان کارتیان هەیە.';
+            } else if (activeCheck === 'ticked') {
+                hint.innerText = `${shown} قوتابی سەحیان لێدراوە.`;
             } else if (!a.dupCard.size && !a.dupName.size && !a.noCard.size && studentsCache.length) {
                 hint.innerText = '✅ هیچ کارتی دووبارە، ناوی دووبارە یان قوتابیی بێ کارت نییە.';
                 hint.className = 'check-hint ok';
@@ -756,11 +753,12 @@
                 const stName = st.name || "";
                 const stCard = displayCardOf(st) || st.keyId || "";
                 const matchClass = (selectedClass === '' || selectedClass === 'all' || stClass === selectedClass);
-                const matchSearch = (stName.toLowerCase().includes(searchQuery) || stCard.toLowerCase().includes(searchQuery) || String(st.scanCode || '').toLowerCase().includes(searchQuery));
+                const matchSearch = (stName.toLowerCase().includes(searchQuery) || stCard.toLowerCase().includes(searchQuery));
                 let matchCheck = true;
                 if (activeCheck === 'dup-card') matchCheck = analysis.dupCard.has(st.keyId);
                 else if (activeCheck === 'dup-name') matchCheck = analysis.dupName.has(st.keyId);
                 else if (activeCheck === 'no-card') matchCheck = analysis.noCard.has(st.keyId);
+                else if (activeCheck === 'ticked') matchCheck = !!st.ticked;
                 return matchClass && matchSearch && matchCheck;
             });
 
@@ -805,6 +803,7 @@
                 tr.dataset.key = key;
                 if (isDupCard || isDupName) tr.classList.add('row-dup');
                 if (isNoCard) tr.classList.add('row-nocard');
+                if (st.ticked) tr.classList.add('row-ticked');
                 if (groupOf) {
                     const g = groupOf.get(key);
                     if (prevGroup !== null && g !== prevGroup) tr.classList.add('group-start');
@@ -814,7 +813,7 @@
                     <td>${cardBtn}<div>${flags.join('')}</div></td>
                     <td><input type="text" class="editable-cell" data-field="name" value="${esc(st.name || '')}">${st.imageUrl ? ' <span title="وێنەی هەیە">📷</span>' : ''}</td>
                     <td><input type="text" class="editable-cell" data-field="class" value="${esc(st.class || '')}"></td>
-                    <td><input type="text" class="editable-cell scan-cell" data-field="scanCode" placeholder="سکان" value="${esc(st.scanCode || '')}"></td>
+                    <td class="tick-cell"><input type="checkbox" class="tick-box" data-key="${esc(key)}" ${st.ticked ? 'checked' : ''} title="سەح لێدان — خۆکار پاشکەوت دەبێت"></td>
                     <td>
                         ${isComplete
                             ? `<span class="status-badge-ok">${esc(st.linkCode)}</span>`
@@ -835,15 +834,9 @@
                     const tr = btn.closest('tr');
                     const newName = tr.querySelector('[data-field="name"]').value.trim();
                     const newClass = tr.querySelector('[data-field="class"]').value.trim();
-                    const newScan = tr.querySelector('[data-field="scanCode"]').value.trim();
 
                     if (!newName || !newClass) {
                         alert("ناو و پۆل نابێت بەتاڵ بن!");
-                        return;
-                    }
-                    const scanOwnerRow = findScanOwner(newScan, key);
-                    if (scanOwnerRow) {
-                        alert(`ئەم کۆدی سکانە پێشتر بۆ «${scanOwnerRow.name || 'قوتابی'}» (${scanOwnerRow.class || '-'}) تۆمارکراوە.`);
                         return;
                     }
 
@@ -855,18 +848,29 @@
                         linkCode: oldData.linkCode || generateLinkCode(14),
                         name: newName,
                         parentJoined: oldData.parentJoined !== undefined ? oldData.parentJoined : false,
-                        ...(newScan ? { scanCode: newScan } : {})
+                        ...(oldData.ticked ? { ticked: true } : {})
                     };
                     await set(ref(db, `students/${key}`), structuredStudent);
                     alert("بە سەرکەوتوویی نوێکرایەوە!");
                 };
             });
 
-            tbody.querySelectorAll('.scan-cell').forEach(inp => {
-                inp.addEventListener('keydown', (e) => {
-                    if (e.key !== 'Enter') return;
-                    e.preventDefault();                       // سکانەر پاش کۆدەکە Enter دەنێرێت → خۆکار پاشکەوت دەکرێت
-                    inp.closest('tr').querySelector('.btn-update-row').click();
+            tbody.querySelectorAll('.tick-box').forEach(box => {
+                box.addEventListener('change', async () => {
+                    const key = box.dataset.key;
+                    const on = box.checked;
+                    box.closest('tr').classList.toggle('row-ticked', on);
+                    box.disabled = true;
+                    try {
+                        await set(ref(db, `students/${key}/ticked`), on ? true : null);   // پاشکەوتکردنی یەکسەر
+                    } catch (err) {
+                        console.error(err);
+                        box.checked = !on;
+                        box.closest('tr').classList.toggle('row-ticked', !on);
+                        alert('نەتوانرا پاشکەوت بکرێت: ' + err.message);
+                    } finally {
+                        box.disabled = false;
+                    }
                 });
             });
 
@@ -929,13 +933,6 @@
             const n = normCard(card);
             return studentsCache.find(s => s.keyId !== exceptKey &&
                 (normCard(s.keyId) === n || (isRealCard(s.cardId) && normCard(s.cardId) === n)));
-        }
-
-        const normScan = (v) => String(v ?? '').trim().toLowerCase();
-        function findScanOwner(code, exceptKey) {
-            const n = normScan(code);
-            if (!n) return null;
-            return studentsCache.find(s => s.keyId !== exceptKey && normScan(s.scanCode) === n) || null;
         }
 
         function refreshModalScanUi() {
@@ -1077,7 +1074,7 @@
                     linkCode: st.linkCode || generateLinkCode(14),
                     name: st.name || '',
                     parentJoined: st.parentJoined !== undefined ? st.parentJoined : false,
-                    ...(st.scanCode ? { scanCode: st.scanCode } : {})
+                    ...(st.ticked ? { ticked: true } : {})
                 };
                 updates[`students/${oldKey}`] = null;
 
@@ -1458,7 +1455,7 @@
                         linkCode: st.linkCode || generateLinkCode(14),
                         name: st.name || '',
                         parentJoined: st.parentJoined !== undefined ? st.parentJoined : false,
-                        ...(st.scanCode ? { scanCode: st.scanCode } : {})
+                        ...(st.ticked ? { ticked: true } : {})
                     };
                     const ops = {};
                     ops[`students/${nc}`] = data;
@@ -1545,7 +1542,7 @@
                         linkCode: finalLinkCode,
                         name: st.name || "",
                         parentJoined: finalParentJoined,
-                        ...(st.scanCode ? { scanCode: st.scanCode } : {})
+                        ...(st.ticked ? { ticked: true } : {})
                     };
                     fixedCount++;
                 }
@@ -1597,18 +1594,18 @@
                 alert("کتێبخانەی Excel بار نەبووە — ئینتەرنێتەکەت بپشکنە و پەڕەکە نوێ بکەرەوە.");
                 return;
             }
-            const aoa = [['ژمارەی کارت', 'ناوی قوتابی', 'پۆل', 'کۆدی سکان', 'کۆدی بەخێوکەر']];
+            const aoa = [['ژمارەی کارت', 'ناوی قوتابی', 'پۆل', 'سەح', 'کۆدی بەخێوکەر']];
             list.forEach(st => {
                 aoa.push([
                     String(displayCardOf(st) || st.cardId || st.keyId || ''),   // وەک Text — ژمارە درێژەکان نابنە 1E+12
                     String(st.name || ''),
                     String(st.class || ''),
-                    String(st.scanCode || ''),
+                    st.ticked ? '✔' : '',
                     String(st.linkCode || '')
                 ]);
             });
             const ws = XLSX.utils.aoa_to_sheet(aoa);
-            ws['!cols'] = [{ wch: 22 }, { wch: 30 }, { wch: 16 }, { wch: 24 }, { wch: 18 }];
+            ws['!cols'] = [{ wch: 22 }, { wch: 30 }, { wch: 16 }, { wch: 8 }, { wch: 18 }];
             const wb = XLSX.utils.book_new();
             wb.Workbook = { Views: [{ RTL: true }] };
             XLSX.utils.book_append_sheet(wb, ws, 'Students');
@@ -1629,14 +1626,14 @@
             exportStudentsXlsx(list, `Students_Report_${label}.xlsx`);
         });
 
-        document.getElementById('btn-download-scanned').addEventListener('click', () => {
+        document.getElementById('btn-download-ticked').addEventListener('click', () => {
             const { list, label } = exportScopeInfo();
-            const scanned = list.filter(st => normScan(st.scanCode));
-            if (!scanned.length) {
-                alert("هیچ قوتابییەک کۆدی سکانی نییە لەم فلتەرەدا.");
+            const ticked = list.filter(st => st.ticked);
+            if (!ticked.length) {
+                alert("هیچ قوتابییەک سەحی لێنەدراوە لەم فلتەرەدا.");
                 return;
             }
-            exportStudentsXlsx(scanned, `Scanned_${label}.xlsx`);
+            exportStudentsXlsx(ticked, `Ticked_${label}.xlsx`);
         });
 
         function resetFormKeepClass() {
@@ -1644,54 +1641,16 @@
             document.getElementById('card-id').value = '';
             hideCardLookup();
             document.getElementById('student-name').value = '';
-            scanInput.value = '';
-            setScanHint('');
+            document.getElementById('student-tick').checked = false;
             document.getElementById('student-file').value = '';
             document.getElementById('student-class').value = currentClass;
             document.getElementById('img-preview').style.display = 'none';
             capturedImageBase64 = null;
             stopWebcam();
-            cardIdInput.focus();
         }
 
-        /* ============ خانەی سکان لە تەنیشت ناو ============ */
-        const scanInput = document.getElementById('scan-code');
-        const scanHint = document.getElementById('scan-hint');
-        const scanAutoSave = document.getElementById('scan-autosave');
-        const studentForm = document.getElementById('student-form');
-        let saving = false;
-
-        function setScanHint(text, kind) {
-            scanHint.innerText = text || '';
-            scanHint.className = 'scan-hint' + (kind ? ' ' + kind : '');
-        }
-
-        scanInput.addEventListener('input', () => {
-            const v = scanInput.value.trim();
-            if (!v) { setScanHint(''); return; }
-            const owner = findScanOwner(v, null);
-            if (owner) setScanHint(`⚠️ ئەم کۆدە پێشتر بۆ «${owner.name || 'قوتابی'}» (${owner.class || '-'}) تۆمارکراوە`, 'err');
-            else setScanHint('✅ کۆدی سکان بەتاڵە', 'ok');
-        });
-
-        scanInput.addEventListener('keydown', (e) => {
-            if (e.key !== 'Enter') return;
-            e.preventDefault();                               // سکانەر پاش کۆدەکە Enter دەنێرێت
-            const v = scanInput.value.trim();
-            if (!v) return;
-            scanInput.classList.add('just-scanned');
-            setTimeout(() => scanInput.classList.remove('just-scanned'), 1200);
-            if (findScanOwner(v, null)) return;               // دووبارەیە — هیچ پاشکەوت ناکرێت
-            if (!scanAutoSave.checked) { setScanHint('✅ سکان کرا — دوگمەی پاشکەوتکردن دابگرە', 'ok'); return; }
-            if (!cardIdInput.value.trim()) { setScanHint('ژمارەی کارت بنووسە یان سکانی بکە، پاشان دووبارە سکان بکە', 'err'); cardIdInput.focus(); return; }
-            if (!document.getElementById('student-name').value.trim()) { setScanHint('ناوی قوتابی بنووسە، پاشان دووبارە سکان بکە', 'err'); document.getElementById('student-name').focus(); return; }
-            if (!document.getElementById('student-class').value.trim()) { setScanHint('پۆل بنووسە، پاشان دووبارە سکان بکە', 'err'); document.getElementById('student-class').focus(); return; }
-            studentForm.requestSubmit();                      // پاشکەوتکردنی خۆکار
-        });
-
-        studentForm.addEventListener('submit', async (e) => {
+        document.getElementById('student-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            if (saving) return;                               // دوو Enter لەسەر یەک سکان دوو جار پاشکەوت نەکات
             const cardId = document.getElementById('card-id').value.trim();
             const name = document.getElementById('student-name').value.trim();
             const cls = document.getElementById('student-class').value.trim();
@@ -1716,13 +1675,6 @@
                 return;
             }
 
-            const scanCode = scanInput.value.trim();
-            const scanOwner = findScanOwner(scanCode, null);
-            if (scanOwner) {
-                alert(`ئەم کۆدی سکانە پێشتر بۆ «${scanOwner.name || 'قوتابی'}» (${scanOwner.class || '-'}) تۆمارکراوە.`);
-                return;
-            }
-
             const studentData = {
                 cardId: cardId,
                 class: cls,
@@ -1730,17 +1682,12 @@
                 linkCode: generateLinkCode(14),
                 name: name,
                 parentJoined: false,
-                ...(scanCode ? { scanCode } : {})
+                ...(document.getElementById('student-tick').checked ? { ticked: true } : {})
             };
 
-            saving = true;
-            try {
-                await set(ref(db, `students/${cardId}`), studentData);
-                resetFormKeepClass();
-                alert("بە سەرکەوتوویی تۆمارکرا!");
-            } finally {
-                saving = false;
-            }
+            await set(ref(db, `students/${cardId}`), studentData);
+            resetFormKeepClass();
+            alert("بە سەرکەوتوویی تۆمارکرا!");
         });
     </script>
 </body>
