@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>تۆمارکردن و دەستکاریکردنی قوتابی - سیستەمی غایبات</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -122,6 +123,16 @@
         .card-lookup .cl-warn { color:#b9770e; font-weight:bold; font-size:12px; }
         .card-lookup .cl-name { font-weight:bold; font-size:16px; }
         .card-lookup button { font-size:12px; padding:7px 10px; background:#2980b9; color:#fff; white-space:nowrap; }
+        .name-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+        .name-row #student-name { flex:1; min-width:180px; width:auto; }
+        .name-row #scan-code { flex:none; width:170px; direction:ltr; text-align:center; font-size:14px; border-style:dashed; border-color:#16a085; }
+        .name-row #scan-code.just-scanned { border-style:solid; background:#eafaf3; }
+        .scan-hint { font-size:12px; min-height:16px; margin:-2px 0 4px; font-weight:bold; color:#888; }
+        .scan-hint.ok { color:#16a085; }
+        .scan-hint.err { color:#c0392b; }
+        .scan-cell { direction:ltr; }
+        .btn-excel-scanned { background-color:#16a085; color:#fff; padding:10px 16px; border-radius:5px; font-size:14px; cursor:pointer; }
+        .btn-excel-scanned:hover { background-color:#12846e; }
         .list-placeholder td { text-align:center; color:#7f8c8d; padding:28px 10px; }
 
         .table-controls { display: flex; gap: 10px; margin: 15px 0; flex-wrap: wrap; align-items: center; }
@@ -238,7 +249,15 @@
                 
                 <div class="card-lookup" id="card-lookup" hidden></div>
 
-                <input type="text" id="student-name" placeholder="ناوی تەواو" required>
+                <div class="name-row">
+                    <input type="text" id="student-name" placeholder="ناوی تەواو" required>
+                    <input type="text" id="scan-code" placeholder="🔍 سکان" title="کۆدی سکان — کۆدەکە لێرە سکان بکە" autocomplete="off" maxlength="100">
+                </div>
+                <div class="scan-hint" id="scan-hint"></div>
+                <label class="cm-check">
+                    <input type="checkbox" id="scan-autosave" checked>
+                    <span>دوای سکان، قوتابییەکە خۆکار پاشکەوت بکە (کاتێک کارت و ناو و پۆل پڕکرابنەوە)</span>
+                </label>
                 
                 <input type="text" id="student-class" list="class-list" placeholder="پۆل (هەڵبژێرە یان بنووسە)" required autocomplete="off">
                 <datalist id="class-list"></datalist>
@@ -320,7 +339,8 @@
                     <option value="all">هەموو پۆلەکان</option>
                 </select>
                 <input type="text" id="student-search" placeholder="گەڕان بە ناو یان کارت...">
-                <button type="button" class="btn-excel" id="btn-download-excel">📥 داگرتنی ڕاپۆرت (Calc / Excel)</button>
+                <button type="button" class="btn-excel" id="btn-download-excel">📥 داگرتنی ڕاپۆرت (xlsx)</button>
+                <button type="button" class="btn-excel-scanned" id="btn-download-scanned">📥 تەنیا سکانکراوەکان (xlsx)</button>
             </div>
 
             <div id="student-count-display" class="student-count-badge">کۆی گشتی قوتابیان: 0</div>
@@ -331,6 +351,7 @@
                         <th>ژمارەی کارت (RFID)<br><span style="font-size:11px;font-weight:normal;">کلیکی لێبکە بۆ گۆڕین</span></th>
                         <th>ناوی تەواو</th>
                         <th>پۆل</th>
+                        <th>کۆدی سکان</th>
                         <th>کۆدی بەخێوکەر</th>
                         <th>کردارەکان</th>
                     </tr>
@@ -726,7 +747,7 @@
                 document.getElementById('student-count-display').innerText = `کۆی گشتی قوتابیان: ${studentsCache.length}`;
                 renderCheckHint(0);
                 document.getElementById('all-students-table-body').innerHTML =
-                    '<tr class="list-placeholder"><td colspan="5">📋 لیستەکە شاراوەیە — پۆلێک هەڵبژێرە، بگەڕێ، یان «هەموو پۆلەکان» هەڵبژێرە بۆ بینینی هەموو قوتابییان.</td></tr>';
+                    '<tr class="list-placeholder"><td colspan="6">📋 لیستەکە شاراوەیە — پۆلێک هەڵبژێرە، بگەڕێ، یان «هەموو پۆلەکان» هەڵبژێرە بۆ بینینی هەموو قوتابییان.</td></tr>';
                 return;
             }
 
@@ -735,7 +756,7 @@
                 const stName = st.name || "";
                 const stCard = displayCardOf(st) || st.keyId || "";
                 const matchClass = (selectedClass === '' || selectedClass === 'all' || stClass === selectedClass);
-                const matchSearch = (stName.toLowerCase().includes(searchQuery) || stCard.toLowerCase().includes(searchQuery));
+                const matchSearch = (stName.toLowerCase().includes(searchQuery) || stCard.toLowerCase().includes(searchQuery) || String(st.scanCode || '').toLowerCase().includes(searchQuery));
                 let matchCheck = true;
                 if (activeCheck === 'dup-card') matchCheck = analysis.dupCard.has(st.keyId);
                 else if (activeCheck === 'dup-name') matchCheck = analysis.dupName.has(st.keyId);
@@ -793,6 +814,7 @@
                     <td>${cardBtn}<div>${flags.join('')}</div></td>
                     <td><input type="text" class="editable-cell" data-field="name" value="${esc(st.name || '')}">${st.imageUrl ? ' <span title="وێنەی هەیە">📷</span>' : ''}</td>
                     <td><input type="text" class="editable-cell" data-field="class" value="${esc(st.class || '')}"></td>
+                    <td><input type="text" class="editable-cell scan-cell" data-field="scanCode" placeholder="سکان" value="${esc(st.scanCode || '')}"></td>
                     <td>
                         ${isComplete
                             ? `<span class="status-badge-ok">${esc(st.linkCode)}</span>`
@@ -813,9 +835,15 @@
                     const tr = btn.closest('tr');
                     const newName = tr.querySelector('[data-field="name"]').value.trim();
                     const newClass = tr.querySelector('[data-field="class"]').value.trim();
+                    const newScan = tr.querySelector('[data-field="scanCode"]').value.trim();
 
                     if (!newName || !newClass) {
                         alert("ناو و پۆل نابێت بەتاڵ بن!");
+                        return;
+                    }
+                    const scanOwnerRow = findScanOwner(newScan, key);
+                    if (scanOwnerRow) {
+                        alert(`ئەم کۆدی سکانە پێشتر بۆ «${scanOwnerRow.name || 'قوتابی'}» (${scanOwnerRow.class || '-'}) تۆمارکراوە.`);
                         return;
                     }
 
@@ -826,11 +854,20 @@
                         imageUrl: oldData.imageUrl !== undefined ? oldData.imageUrl : (oldData.photo || ""),
                         linkCode: oldData.linkCode || generateLinkCode(14),
                         name: newName,
-                        parentJoined: oldData.parentJoined !== undefined ? oldData.parentJoined : false
+                        parentJoined: oldData.parentJoined !== undefined ? oldData.parentJoined : false,
+                        ...(newScan ? { scanCode: newScan } : {})
                     };
                     await set(ref(db, `students/${key}`), structuredStudent);
                     alert("بە سەرکەوتوویی نوێکرایەوە!");
                 };
+            });
+
+            tbody.querySelectorAll('.scan-cell').forEach(inp => {
+                inp.addEventListener('keydown', (e) => {
+                    if (e.key !== 'Enter') return;
+                    e.preventDefault();                       // سکانەر پاش کۆدەکە Enter دەنێرێت → خۆکار پاشکەوت دەکرێت
+                    inp.closest('tr').querySelector('.btn-update-row').click();
+                });
             });
 
             tbody.querySelectorAll('.btn-delete-row').forEach(btn => {
@@ -892,6 +929,13 @@
             const n = normCard(card);
             return studentsCache.find(s => s.keyId !== exceptKey &&
                 (normCard(s.keyId) === n || (isRealCard(s.cardId) && normCard(s.cardId) === n)));
+        }
+
+        const normScan = (v) => String(v ?? '').trim().toLowerCase();
+        function findScanOwner(code, exceptKey) {
+            const n = normScan(code);
+            if (!n) return null;
+            return studentsCache.find(s => s.keyId !== exceptKey && normScan(s.scanCode) === n) || null;
         }
 
         function refreshModalScanUi() {
@@ -1032,7 +1076,8 @@
                     imageUrl: st.imageUrl !== undefined ? st.imageUrl : (st.photo || ''),
                     linkCode: st.linkCode || generateLinkCode(14),
                     name: st.name || '',
-                    parentJoined: st.parentJoined !== undefined ? st.parentJoined : false
+                    parentJoined: st.parentJoined !== undefined ? st.parentJoined : false,
+                    ...(st.scanCode ? { scanCode: st.scanCode } : {})
                 };
                 updates[`students/${oldKey}`] = null;
 
@@ -1412,7 +1457,8 @@
                         imageUrl: st.imageUrl !== undefined ? st.imageUrl : (st.photo || ''),
                         linkCode: st.linkCode || generateLinkCode(14),
                         name: st.name || '',
-                        parentJoined: st.parentJoined !== undefined ? st.parentJoined : false
+                        parentJoined: st.parentJoined !== undefined ? st.parentJoined : false,
+                        ...(st.scanCode ? { scanCode: st.scanCode } : {})
                     };
                     const ops = {};
                     ops[`students/${nc}`] = data;
@@ -1498,7 +1544,8 @@
                         imageUrl: finalImageUrl,
                         linkCode: finalLinkCode,
                         name: st.name || "",
-                        parentJoined: finalParentJoined
+                        parentJoined: finalParentJoined,
+                        ...(st.scanCode ? { scanCode: st.scanCode } : {})
                     };
                     fixedCount++;
                 }
@@ -1544,28 +1591,52 @@
             alert(`بە سەرکەوتوویی پۆلی هەموو (${targetStudents.length}) قوتابییەکە گۆڕدرا بۆ "${newClass}"!`);
         });
 
-        document.getElementById('btn-download-excel').addEventListener('click', () => {
-            const selectedClass = document.getElementById('filter-class').value;
-            let listToExport = studentsCache;
-            if (selectedClass !== 'all' && selectedClass !== '') {
-                listToExport = studentsCache.filter(st => st.class === selectedClass);
+        /* ============ داگرتنی xlsx ============ */
+        function exportStudentsXlsx(list, fileName) {
+            if (!window.XLSX) {
+                alert("کتێبخانەی Excel بار نەبووە — ئینتەرنێتەکەت بپشکنە و پەڕەکە نوێ بکەرەوە.");
+                return;
             }
-
-            let csvContent = "\uFEFFژمارەی کارت,ناوی قوتابی,پۆل,کۆدی بەخێوکەر\n";
-            listToExport.forEach(st => {
-                const cId = st.cardId || st.keyId;
-                const lCode = st.linkCode || "";
-                csvContent += `"${cId}","${st.name}","${st.class}","${lCode}"\n`;
+            const aoa = [['ژمارەی کارت', 'ناوی قوتابی', 'پۆل', 'کۆدی سکان', 'کۆدی بەخێوکەر']];
+            list.forEach(st => {
+                aoa.push([
+                    String(displayCardOf(st) || st.cardId || st.keyId || ''),   // وەک Text — ژمارە درێژەکان نابنە 1E+12
+                    String(st.name || ''),
+                    String(st.class || ''),
+                    String(st.scanCode || ''),
+                    String(st.linkCode || '')
+                ]);
             });
+            const ws = XLSX.utils.aoa_to_sheet(aoa);
+            ws['!cols'] = [{ wch: 22 }, { wch: 30 }, { wch: 16 }, { wch: 24 }, { wch: 18 }];
+            const wb = XLSX.utils.book_new();
+            wb.Workbook = { Views: [{ RTL: true }] };
+            XLSX.utils.book_append_sheet(wb, ws, 'Students');
+            XLSX.writeFile(wb, fileName);
+        }
 
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `Students_Report_${selectedClass}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+        function exportScopeInfo() {
+            const selectedClass = document.getElementById('filter-class').value;
+            const all = (selectedClass === '' || selectedClass === 'all');
+            const list = all ? studentsCache.slice() : studentsCache.filter(st => st.class === selectedClass);
+            list.sort((a, b) => (a.class || '').localeCompare(b.class || '', 'ku') || (a.name || '').localeCompare(b.name || '', 'ku'));
+            const label = (all ? 'All' : selectedClass).replace(/[\\/:*?"<>|]/g, '_');
+            return { list, label };
+        }
+
+        document.getElementById('btn-download-excel').addEventListener('click', () => {
+            const { list, label } = exportScopeInfo();
+            exportStudentsXlsx(list, `Students_Report_${label}.xlsx`);
+        });
+
+        document.getElementById('btn-download-scanned').addEventListener('click', () => {
+            const { list, label } = exportScopeInfo();
+            const scanned = list.filter(st => normScan(st.scanCode));
+            if (!scanned.length) {
+                alert("هیچ قوتابییەک کۆدی سکانی نییە لەم فلتەرەدا.");
+                return;
+            }
+            exportStudentsXlsx(scanned, `Scanned_${label}.xlsx`);
         });
 
         function resetFormKeepClass() {
@@ -1573,15 +1644,54 @@
             document.getElementById('card-id').value = '';
             hideCardLookup();
             document.getElementById('student-name').value = '';
+            scanInput.value = '';
+            setScanHint('');
             document.getElementById('student-file').value = '';
             document.getElementById('student-class').value = currentClass;
             document.getElementById('img-preview').style.display = 'none';
             capturedImageBase64 = null;
             stopWebcam();
+            cardIdInput.focus();
         }
 
-        document.getElementById('student-form').addEventListener('submit', async (e) => {
+        /* ============ خانەی سکان لە تەنیشت ناو ============ */
+        const scanInput = document.getElementById('scan-code');
+        const scanHint = document.getElementById('scan-hint');
+        const scanAutoSave = document.getElementById('scan-autosave');
+        const studentForm = document.getElementById('student-form');
+        let saving = false;
+
+        function setScanHint(text, kind) {
+            scanHint.innerText = text || '';
+            scanHint.className = 'scan-hint' + (kind ? ' ' + kind : '');
+        }
+
+        scanInput.addEventListener('input', () => {
+            const v = scanInput.value.trim();
+            if (!v) { setScanHint(''); return; }
+            const owner = findScanOwner(v, null);
+            if (owner) setScanHint(`⚠️ ئەم کۆدە پێشتر بۆ «${owner.name || 'قوتابی'}» (${owner.class || '-'}) تۆمارکراوە`, 'err');
+            else setScanHint('✅ کۆدی سکان بەتاڵە', 'ok');
+        });
+
+        scanInput.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();                               // سکانەر پاش کۆدەکە Enter دەنێرێت
+            const v = scanInput.value.trim();
+            if (!v) return;
+            scanInput.classList.add('just-scanned');
+            setTimeout(() => scanInput.classList.remove('just-scanned'), 1200);
+            if (findScanOwner(v, null)) return;               // دووبارەیە — هیچ پاشکەوت ناکرێت
+            if (!scanAutoSave.checked) { setScanHint('✅ سکان کرا — دوگمەی پاشکەوتکردن دابگرە', 'ok'); return; }
+            if (!cardIdInput.value.trim()) { setScanHint('ژمارەی کارت بنووسە یان سکانی بکە، پاشان دووبارە سکان بکە', 'err'); cardIdInput.focus(); return; }
+            if (!document.getElementById('student-name').value.trim()) { setScanHint('ناوی قوتابی بنووسە، پاشان دووبارە سکان بکە', 'err'); document.getElementById('student-name').focus(); return; }
+            if (!document.getElementById('student-class').value.trim()) { setScanHint('پۆل بنووسە، پاشان دووبارە سکان بکە', 'err'); document.getElementById('student-class').focus(); return; }
+            studentForm.requestSubmit();                      // پاشکەوتکردنی خۆکار
+        });
+
+        studentForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            if (saving) return;                               // دوو Enter لەسەر یەک سکان دوو جار پاشکەوت نەکات
             const cardId = document.getElementById('card-id').value.trim();
             const name = document.getElementById('student-name').value.trim();
             const cls = document.getElementById('student-class').value.trim();
@@ -1606,18 +1716,31 @@
                 return;
             }
 
+            const scanCode = scanInput.value.trim();
+            const scanOwner = findScanOwner(scanCode, null);
+            if (scanOwner) {
+                alert(`ئەم کۆدی سکانە پێشتر بۆ «${scanOwner.name || 'قوتابی'}» (${scanOwner.class || '-'}) تۆمارکراوە.`);
+                return;
+            }
+
             const studentData = {
                 cardId: cardId,
                 class: cls,
                 imageUrl: photoData || "",
                 linkCode: generateLinkCode(14),
                 name: name,
-                parentJoined: false
+                parentJoined: false,
+                ...(scanCode ? { scanCode } : {})
             };
 
-            await set(ref(db, `students/${cardId}`), studentData);
-            resetFormKeepClass();
-            alert("بە سەرکەوتوویی تۆمارکرا!");
+            saving = true;
+            try {
+                await set(ref(db, `students/${cardId}`), studentData);
+                resetFormKeepClass();
+                alert("بە سەرکەوتوویی تۆمارکرا!");
+            } finally {
+                saving = false;
+            }
         });
     </script>
 </body>
