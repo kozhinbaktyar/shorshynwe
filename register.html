@@ -144,6 +144,8 @@
         .editable-cell { background: #fdfefe; border: 1px dashed #3498db; padding: 6px; width: 92%; text-align: center; border-radius: 4px; }
         .editable-cell:focus { background: #fff; border: 1px solid #2980b9; outline: none; }
         .btn-update-row { background: #2980b9; color: white; padding: 5px 10px; font-size: 12px; }
+        .btn-card-row { background: #e84393; color: white; padding: 5px 10px; font-size: 12px; }
+        .btn-card-row:disabled { opacity: .6; cursor: wait; }
         .btn-delete-row { background: #c0392b; color: white; padding: 5px 10px; font-size: 12px; }
         .student-count-badge { background: #e67e22; color: white; padding: 5px 12px; border-radius: 12px; font-size: 13px; font-weight: bold; display: inline-block; margin-bottom: 10px; }
         .status-badge-ok { color: #27ae60; font-weight: bold; font-size: 12px; }
@@ -822,6 +824,7 @@
                     </td>
                     <td>
                         <button class="btn-update-row" data-key="${esc(key)}">نوێکردنەوە</button>
+                        <button class="btn-card-row" data-key="${esc(key)}" title="دروستکردنی کارتی ئەم قوتابییە">🪪 کارت</button>
                         <button class="btn-delete-row" data-key="${esc(key)}">سڕینەوە</button>
                     </td>
                 `;
@@ -872,6 +875,37 @@
                         box.disabled = false;
                     }
                 });
+            });
+
+            tbody.querySelectorAll('.btn-card-row').forEach(btn => {
+                btn.onclick = async () => {
+                    const key = btn.dataset.key;
+                    const tr = btn.closest('tr');
+                    const st = studentsCache.find(x => x.keyId === key);
+                    if (!st) return;
+                    const student = {
+                        name: tr.querySelector('[data-field="name"]').value.trim() || st.name || '',
+                        class: tr.querySelector('[data-field="class"]').value.trim() || st.class || '',
+                        cardId: displayCardOf(st) || ''
+                    };
+                    if (!student.cardId && !confirm('ئەم قوتابییە ژمارەی کارتی نییە. دەتەوێت کارتەکە بەبێ ژمارە دروست بکەیت؟')) return;
+                    const oldText = btn.textContent;
+                    btn.disabled = true; btn.textContent = '⏳';
+                    try {
+                        const assets = await loadCardAssets();
+                        const blob = await canvasToPngBlob(drawStudentCard(student, assets));
+                        const a = document.createElement('a');
+                        a.href = URL.createObjectURL(blob);
+                        a.download = `${safeFileName(student.name)}_${safeFileName(student.cardId || 'بێ-کارت')}.png`;
+                        document.body.appendChild(a); a.click(); a.remove();
+                        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+                    } catch (err) {
+                        console.error(err);
+                        alert('نەتوانرا کارتەکە دروست بکرێت: ' + err.message + '\n\n(دڵنیابە فۆڵدەری assets/card لەتەنیشت ئەم فایلە هەیە)');
+                    } finally {
+                        btn.disabled = false; btn.textContent = oldText;
+                    }
+                };
             });
 
             tbody.querySelectorAll('.btn-delete-row').forEach(btn => {
@@ -1635,6 +1669,93 @@
             }
             exportStudentsXlsx(ticked, `Ticked_${label}.xlsx`);
         });
+
+        /* ============ کارتی قوتابی: وێنەکێشان (هەمان کۆدی admin.html) ============ */
+        const CARD_W = 408, CARD_H = 612, CARD_SCALE = 3;
+        const CARD_FONT = "Tahoma, 'Segoe UI', 'Noto Naskh Arabic', Arial, sans-serif";
+        const CARD_ASSET_PATHS = {
+            bg: 'assets/card/card-bg.png',
+            school: 'assets/card/school-logo.png',
+            ardu: 'assets/card/ardu-logo.png',
+            qr: 'assets/card/qr-code.png'
+        };
+        let cardAssetsPromise = null;
+
+        function loadCardImage(src) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.onerror = () => reject(new Error('وێنە نەدۆزرایەوە: ' + src));
+                img.src = src;
+            });
+        }
+        function loadCardAssets() {
+            if (!cardAssetsPromise) {
+                cardAssetsPromise = Promise.all(Object.values(CARD_ASSET_PATHS).map(loadCardImage))
+                    .then(([bg, school, ardu, qr]) => ({ bg, school, ardu, qr }))
+                    .catch(err => { cardAssetsPromise = null; throw err; });
+            }
+            return cardAssetsPromise;
+        }
+        function drawContained(ctx, img, x, y, maxW, maxH) {
+            const r = Math.min(maxW / img.width, maxH / img.height);
+            const w = img.width * r, h = img.height * r;
+            ctx.drawImage(img, x + (maxW - w) / 2, y + (maxH - h) / 2, w, h);
+        }
+        function drawFitText(ctx, text, cx, y, maxWidth, startSize, weight, color) {
+            let size = startSize;
+            do {
+                ctx.font = `${weight} ${size}px ${CARD_FONT}`;
+                if (ctx.measureText(text).width <= maxWidth) break;
+                size -= 1;
+            } while (size > 10);
+            ctx.fillStyle = color;
+            ctx.fillText(text, cx, y);
+        }
+        function drawStudentCard(student, assets) {
+            const canvas = document.createElement('canvas');
+            canvas.width = CARD_W * CARD_SCALE;
+            canvas.height = CARD_H * CARD_SCALE;
+            const ctx = canvas.getContext('2d');
+            ctx.scale(CARD_SCALE, CARD_SCALE);
+            ctx.imageSmoothingQuality = 'high';
+            ctx.direction = 'rtl';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, CARD_W, CARD_H);
+            ctx.drawImage(assets.bg, 0, 0, CARD_W, CARD_H);
+            drawContained(ctx, assets.school, 119, 52, 170, 155);
+
+            const cx = CARD_W / 2;
+            drawFitText(ctx, 'ناوی قوتابی', cx, 232, 200, 13, 'normal', '#d6639a');
+            drawFitText(ctx, student.name || '', cx, 262, 290, 28, 'bold', '#2d2d2d');
+
+            ctx.strokeStyle = '#f2a9c8';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.moveTo(95, 290); ctx.lineTo(313, 290); ctx.stroke();
+
+            drawFitText(ctx, 'پۆل', 270, 313, 120, 13, 'normal', '#d6639a');
+            drawFitText(ctx, String(student.class || ''), 270, 340, 120, 24, 'bold', '#2d2d2d');
+            drawFitText(ctx, 'ژمارەی کارت', 138, 313, 120, 13, 'normal', '#d6639a');
+            drawFitText(ctx, String(student.cardId || ''), 138, 340, 120, 22, 'bold', '#2d2d2d');
+
+            ctx.beginPath(); ctx.moveTo(204, 303); ctx.lineTo(204, 352); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(95, 372); ctx.lineTo(313, 372); ctx.stroke();
+
+            drawContained(ctx, assets.ardu, 84, 386, 116, 128);
+            drawContained(ctx, assets.qr, 214, 396, 104, 104);
+            return canvas;
+        }
+        function canvasToPngBlob(canvas) {
+            return new Promise((resolve, reject) => {
+                canvas.toBlob(b => b ? resolve(b) : reject(new Error('نەتوانرا وێنە دروست بکرێت')), 'image/png');
+            });
+        }
+        function safeFileName(str) {
+            return String(str).replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').replace(/\s+/g, ' ').trim() || 'بێناو';
+        }
 
         function resetFormKeepClass() {
             const currentClass = document.getElementById('student-class').value;
